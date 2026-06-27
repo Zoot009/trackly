@@ -1,0 +1,61 @@
+# Production stack for the VPS: Postgres + backend + Nginx reverse proxy.
+# The dashboard is deployed separately on Vercel.
+name: flowace
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-flowace}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flowace}
+      POSTGRES_DB: ${POSTGRES_DB:-flowace}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flowace}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-flowace}:${POSTGRES_PASSWORD:-flowace}@postgres:5432/${POSTGRES_DB:-flowace}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      AGENT_TOKEN_SECRET: ${AGENT_TOKEN_SECRET:?set AGENT_TOKEN_SECRET}
+      UPLOADS_DIR: /data/uploads/screenshots
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:4000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    volumes:
+      - uploads:/data/uploads/screenshots
+    expose:
+      - "4000"
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/certs:/etc/nginx/certs:ro
+      - uploads:/data/uploads/screenshots:ro
+      # Agent install scripts + installers. Put install.ps1, install.sh and a
+      # downloads/ folder (Trackly-Setup.exe, Trackly.dmg, Trackly.AppImage) here.
+      - ./agent-dist:/data/agent:ro
+
+volumes:
+  pgdata:
+  uploads:

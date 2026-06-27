@@ -1,0 +1,49 @@
+# Production stack for the VPS: backend + Caddy (auto-TLS) using Supabase for
+# the database. No local Postgres — DATABASE_URL/DIRECT_URL point at Supabase.
+#
+#   cd docker && cp .env.example .env   # fill in domain, email, Supabase, secrets
+#   docker compose -f docker-compose.prod.yml up -d --build
+name: trackly
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL (Supabase pooled, :6543)}
+      DIRECT_URL: ${DIRECT_URL:?set DIRECT_URL (Supabase direct, :5432)}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      AGENT_TOKEN_SECRET: ${AGENT_TOKEN_SECRET:?set AGENT_TOKEN_SECRET}
+      UPLOADS_DIR: /data/uploads/screenshots
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?e.g. https://tracker.zootcloud.com}
+      CORS_ORIGIN: ${CORS_ORIGIN:?dashboard origin(s), comma-separated}
+    volumes:
+      - uploads:/data/uploads/screenshots
+    expose:
+      - "4000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      TRACKLY_DOMAIN: ${TRACKLY_DOMAIN:?e.g. tracker.zootcloud.com}
+      ACME_EMAIL: ${ACME_EMAIL:?email for Let's Encrypt}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./agent-dist:/srv/agent:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  uploads:
+  caddy_data:
+  caddy_config:

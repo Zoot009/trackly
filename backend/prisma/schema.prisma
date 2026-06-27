@@ -1,0 +1,228 @@
+// Flowace backend data model.
+// Postgres + Prisma. Run `npm run prisma:migrate --workspace backend`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum EmployeeStatus {
+  ONLINE
+  OFFLINE
+  IDLE
+}
+
+enum ActivityState {
+  ACTIVE
+  IDLE
+}
+
+enum Productivity {
+  PRODUCTIVE
+  UNPRODUCTIVE
+  NEUTRAL
+}
+
+enum RuleType {
+  APP
+  WEBSITE
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String // bcrypt hash
+  role      UserRole @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model Employee {
+  id         String         @id @default(cuid())
+  name       String
+  email      String         @unique
+  department String?
+  jobTitle   String?
+  status     EmployeeStatus @default(OFFLINE)
+  lastSeen   DateTime?
+
+  // Denormalised live snapshot for fast dashboard reads.
+  currentApp        String?
+  currentWebsite    String?
+  currentActivity   ActivityState?
+  lastScreenshotUrl String?
+
+  // Enrollment token used by the agent to register a device.
+  enrollmentToken String  @unique @default(cuid())
+  active          Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  devices         Device[]
+  sessions        Session[]
+  activityLogs    ActivityLog[]
+  applicationUsage ApplicationUsage[]
+  websiteUsage    WebsiteUsage[]
+  screenshots     Screenshot[]
+
+  @@index([status])
+  @@index([department])
+  @@map("employees")
+}
+
+model Device {
+  id           String    @id @default(cuid())
+  employeeId   String
+  hostname     String
+  platform     String
+  osVersion    String?
+  agentVersion String
+  // Hashed refresh/auth token issued at registration.
+  tokenHash    String
+  lastSeen     DateTime?
+  createdAt    DateTime  @default(now())
+
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  sessions     Session[]
+  activityLogs ActivityLog[]
+  screenshots  Screenshot[]
+
+  @@index([employeeId])
+  @@map("devices")
+}
+
+// A continuous online period for a device (login -> logout/disconnect).
+model Session {
+  id            String    @id @default(cuid())
+  employeeId    String
+  deviceId      String
+  startedAt     DateTime  @default(now())
+  endedAt       DateTime?
+  durationSec   Int       @default(0)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, startedAt])
+  @@map("sessions")
+}
+
+model ActivityLog {
+  id            String        @id @default(cuid())
+  employeeId    String
+  deviceId      String
+  state         ActivityState
+  appName       String?
+  windowTitle   String?
+  website       String?
+  keyboardCount Int           @default(0)
+  mouseCount    Int           @default(0)
+  idleSeconds   Int           @default(0)
+  startedAt     DateTime
+  endedAt       DateTime
+  durationSec   Int           @default(0)
+  createdAt     DateTime      @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, startedAt])
+  @@index([appName])
+  @@map("activity_logs")
+}
+
+// Daily aggregate of time spent per application.
+model ApplicationUsage {
+  id           String       @id @default(cuid())
+  employeeId   String
+  appName      String
+  productivity Productivity @default(NEUTRAL)
+  totalSeconds Int          @default(0)
+  date         DateTime     @db.Date
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, appName, date])
+  @@index([date])
+  @@map("application_usage")
+}
+
+// Daily aggregate of time spent per website domain.
+model WebsiteUsage {
+  id           String       @id @default(cuid())
+  employeeId   String
+  domain       String
+  productivity Productivity @default(NEUTRAL)
+  totalSeconds Int          @default(0)
+  date         DateTime     @db.Date
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, domain, date])
+  @@index([date])
+  @@map("website_usage")
+}
+
+model Screenshot {
+  id           String   @id @default(cuid())
+  employeeId   String
+  deviceId     String
+  storageKey   String // relative path under /uploads/screenshots
+  url          String
+  thumbnailUrl String
+  width        Int
+  height       Int
+  sizeBytes    Int
+  capturedAt   DateTime
+  createdAt    DateTime @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, capturedAt])
+  @@map("screenshots")
+}
+
+// Single-row global settings table.
+model Settings {
+  id                    String   @id @default("global")
+  screenshotIntervalSec Int      @default(300)
+  idleTimeoutSec        Int      @default(180)
+  screenshotQuality     Int      @default(70)
+  workdayStart          String   @default("09:00")
+  workdayEnd            String   @default("18:00")
+  dataRetentionDays     Int      @default(90)
+  monitoringEnabled     Boolean  @default(true)
+  updatedAt             DateTime @updatedAt
+
+  rules ProductivityRule[]
+
+  @@map("settings")
+}
+
+model ProductivityRule {
+  id           String       @id @default(cuid())
+  settingsId   String       @default("global")
+  pattern      String
+  type         RuleType
+  productivity Productivity
+
+  settings Settings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+
+  @@unique([type, pattern])
+  @@map("productivity_rules")
+}

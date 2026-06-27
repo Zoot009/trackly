@@ -1,0 +1,58 @@
+name: Build Trackly Agent
+
+# Builds the desktop agent installers for Windows, macOS and Linux on real
+# runners (electron-builder can't cross-compile reliably). Trigger it manually
+# from the Actions tab, or by pushing a tag like `agent-v1.0.0`.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "agent-v*"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            cmd: dist:win
+            artifact: windows
+          - os: macos-latest
+            cmd: dist:mac
+            artifact: macos
+          - os: ubuntu-latest
+            cmd: dist:linux
+            artifact: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Install the whole monorepo, then build the shared package the agent imports.
+      - run: npm ci
+      - run: npm run build:shared
+
+      # Rebuild native modules (better-sqlite3, sharp, uiohook-napi) against
+      # Electron's ABI, then package. Running from the agent workspace keeps
+      # electron-builder scoped to the app.
+      - name: Build installer
+        working-directory: agent
+        run: |
+          npx electron-builder install-app-deps
+          npm run ${{ matrix.cmd }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trackly-agent-${{ matrix.artifact }}
+          path: |
+            agent/release/*.exe
+            agent/release/*.dmg
+            agent/release/*.AppImage
+            agent/release/*.deb
+            agent/release/latest*.yml
+          if-no-files-found: ignore

@@ -1,0 +1,22 @@
+# Caddy reverse proxy for the Trackly backend.
+# Auto-obtains + auto-renews a Let's Encrypt certificate for the domain, and
+# proxies HTTP + WebSocket (Socket.IO) to the backend. Agent installers and
+# install scripts are served as static files from /srv/agent.
+
+{$TRACKLY_DOMAIN} {
+	encode zstd gzip
+	tls {$ACME_EMAIL}
+
+	# Agent one-line scripts + installers (mounted from docker/agent-dist).
+	@agent path /install.ps1 /install.sh /downloads/*
+	handle @agent {
+		root * /srv/agent
+		file_server
+	}
+
+	# Everything else (REST API, /socket.io WebSocket, /uploads/screenshots)
+	# goes to the backend, which serves them.
+	handle {
+		reverse_proxy backend:4000
+	}
+}

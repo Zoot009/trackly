@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env*.local
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Uploads (screenshots stored on VPS volume)
+uploads/
+
+# Electron build artifacts
+agent/release/
+agent/out/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Prisma
+backend/prisma/*.db
