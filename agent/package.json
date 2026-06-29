@@ -39,16 +39,16 @@
     "electronVersion": "33.2.1",
     "directories": { "output": "release" },
     "files": ["dist/**/*", "assets/**/*", "static/**/*"],
-    "win": { "target": ["nsis"], "artifactName": "Trackly-Setup-${version}.${ext}" },
+    "win": { "target": ["nsis"], "artifactName": "Trackly-Setup.${ext}" },
     "mac": {
       "target": ["dmg"],
       "category": "public.app-category.productivity",
-      "artifactName": "Trackly-${version}.${ext}"
+      "artifactName": "Trackly.${ext}"
     },
     "linux": {
       "target": ["AppImage", "deb"],
       "category": "Utility",
-      "artifactName": "Trackly-${version}.${ext}"
+      "artifactName": "Trackly.${ext}"
     },
     "nsis": {
       "oneClick": true,
