@@ -4,6 +4,7 @@
   "private": true,
   "description": "Trackly desktop monitoring agent (Electron).",
   "author": "Trackly <support@trackly.dev>",
+  "homepage": "https://tracker.zootcloud.com",
   "main": "dist/main/index.js",
   "scripts": {
     "build:ts": "tsc -p tsconfig.json",
