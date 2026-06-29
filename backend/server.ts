@@ -70,7 +70,7 @@ async function main() {
   });
 
   const io = new SocketServer(server, {
-    cors: { origin: env.corsOrigin, credentials: true },
+    cors: { origin: env.corsOrigins, credentials: true },
     path: "/socket.io",
   });
 
