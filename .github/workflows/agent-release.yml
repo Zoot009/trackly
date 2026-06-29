@@ -34,7 +34,12 @@ jobs:
           cache: npm
 
       # Install the whole monorepo, then build the shared package the agent imports.
-      - run: npm ci
+      # Force dev + optional deps: GitHub runners can carry NODE_ENV=production,
+      # which otherwise omits electron, electron-builder, app-builder-bin and the
+      # @types packages the agent build needs.
+      - run: npm ci --include=dev --include=optional
+        env:
+          NODE_ENV: development
       - run: npm run build:shared
 
       # Rebuild native modules (better-sqlite3, sharp, uiohook-napi) against
