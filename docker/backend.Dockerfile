@@ -36,6 +36,7 @@ COPY --from=build /app/shared/package.json ./shared/package.json
 COPY --from=build /app/backend/.next ./backend/.next
 COPY --from=build /app/backend/dist ./backend/dist
 COPY --from=build /app/backend/prisma ./backend/prisma
+COPY --from=build /app/backend/next.config.js ./backend/next.config.js
 COPY --from=build /app/backend/package.json ./backend/package.json
 COPY --from=build /app/package.json ./package.json
 
