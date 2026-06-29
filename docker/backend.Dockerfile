@@ -12,11 +12,15 @@ FROM base AS deps
 COPY package.json package-lock.json* ./
 COPY shared/package.json ./shared/
 COPY backend/package.json ./backend/
-RUN npm install --workspaces --include-workspace-root --no-audit --no-fund
+RUN npm install --workspaces --include-workspace-root --include=dev --no-audit --no-fund
 
 # ---- build ----
 FROM deps AS build
-ENV NODE_ENV=development
+# Build in production mode. (Building with NODE_ENV=development makes Next
+# prerender error pages with the dev React build, which crashes on /404 in
+# Next 15.1.x — "Html should not be imported".) Dev deps are already installed
+# above, so the toolchain is present even in production mode.
+ENV NODE_ENV=production
 COPY tsconfig.base.json ./
 COPY shared ./shared
 COPY backend ./backend
@@ -31,8 +35,6 @@ COPY --from=build /app/shared/dist ./shared/dist
 COPY --from=build /app/shared/package.json ./shared/package.json
 COPY --from=build /app/backend/.next ./backend/.next
 COPY --from=build /app/backend/dist ./backend/dist
-COPY --from=build /app/backend/public ./backend/public
-COPY --from=build /app/backend/node_modules/.prisma ./backend/node_modules/.prisma
 COPY --from=build /app/backend/prisma ./backend/prisma
 COPY --from=build /app/backend/package.json ./backend/package.json
 COPY --from=build /app/package.json ./package.json

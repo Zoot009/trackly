@@ -1,8 +1,8 @@
-# Production stack for the VPS: backend + Caddy (auto-TLS) using Supabase for
-# the database. No local Postgres — DATABASE_URL/DIRECT_URL point at Supabase.
+# Production stack for a VPS that already runs Coolify (Traefik on 80/443).
+# We don't run our own proxy — we attach the backend to Coolify's `coolify`
+# network and let its Traefik route the domain to us with automatic TLS.
 #
-#   cd docker && cp .env.example .env   # fill in domain, email, Supabase, secrets
-#   docker compose -f docker-compose.prod.yml up -d --build
+#   cd docker && docker compose -f docker-compose.prod.yml up -d --build
 name: trackly
 
 services:
@@ -23,27 +23,30 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:?dashboard origin(s), comma-separated}
     volumes:
       - uploads:/data/uploads/screenshots
+    networks:
+      - coolify
     expose:
       - "4000"
-
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on:
-      - backend
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      TRACKLY_DOMAIN: ${TRACKLY_DOMAIN:?e.g. tracker.zootcloud.com}
-      ACME_EMAIL: ${ACME_EMAIL:?email for Let's Encrypt}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./agent-dist:/srv/agent:ro
-      - caddy_data:/data
-      - caddy_config:/config
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=coolify
+      # HTTPS router (Let's Encrypt via Coolify's resolver)
+      - "traefik.http.routers.trackly.rule=Host(`${TRACKLY_DOMAIN}`)"
+      - traefik.http.routers.trackly.entrypoints=https
+      - traefik.http.routers.trackly.tls=true
+      - traefik.http.routers.trackly.tls.certresolver=letsencrypt
+      - traefik.http.routers.trackly.service=trackly
+      # HTTP router → redirect to HTTPS
+      - "traefik.http.routers.trackly-http.rule=Host(`${TRACKLY_DOMAIN}`)"
+      - traefik.http.routers.trackly-http.entrypoints=http
+      - traefik.http.routers.trackly-http.middlewares=trackly-redirect
+      - traefik.http.middlewares.trackly-redirect.redirectscheme.scheme=https
+      # Tell Traefik which port the app listens on
+      - traefik.http.services.trackly.loadbalancer.server.port=4000
 
 volumes:
   uploads:
-  caddy_data:
-  caddy_config:
+
+networks:
+  coolify:
+    external: true
