@@ -19,10 +19,13 @@ services:
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
       AGENT_TOKEN_SECRET: ${AGENT_TOKEN_SECRET:?set AGENT_TOKEN_SECRET}
       UPLOADS_DIR: /data/uploads/screenshots
+      DOWNLOADS_DIR: /data/downloads
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?e.g. https://tracker.zootcloud.com}
       CORS_ORIGIN: ${CORS_ORIGIN:?dashboard origin(s), comma-separated}
     volumes:
       - uploads:/data/uploads/screenshots
+      # Drop built installers + install scripts here on the VPS; served at /downloads.
+      - ./agent-dist:/data/downloads:ro
     networks:
       - coolify
     expose:

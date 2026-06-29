@@ -16,6 +16,10 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "12h",
   agentTokenSecret: required("AGENT_TOKEN_SECRET", "dev-agent-secret-change-me"),
   uploadsDir: process.env.UPLOADS_DIR ?? "./uploads/screenshots",
+  // Directory holding agent installers + install scripts, served publicly so
+  // employees can run the one-line installer. Populated from the agent-dist
+  // folder on the VPS (see docker-compose.prod.yml).
+  downloadsDir: process.env.DOWNLOADS_DIR ?? "./agent-dist",
   publicBaseUrl: process.env.PUBLIC_BASE_URL ?? "http://localhost:4000",
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
   // Parsed list form for Socket.IO (which needs an array for multiple origins).

@@ -32,6 +32,16 @@ const MIME: Record<string, string> = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
+  // Agent installers + update metadata + install scripts.
+  ".exe": "application/octet-stream",
+  ".dmg": "application/octet-stream",
+  ".appimage": "application/octet-stream",
+  ".zip": "application/zip",
+  ".blockmap": "application/octet-stream",
+  ".yml": "text/yaml",
+  ".yaml": "text/yaml",
+  ".ps1": "text/plain; charset=utf-8",
+  ".sh": "text/plain; charset=utf-8",
 };
 
 async function serveUpload(reqUrl: string, res: import("http").ServerResponse): Promise<boolean> {
@@ -57,13 +67,52 @@ async function serveUpload(reqUrl: string, res: import("http").ServerResponse): 
   }
 }
 
+/**
+ * Serve a file from the downloads directory (agent installers, electron-updater
+ * metadata, and the install scripts). `rel` is the path under downloadsDir.
+ */
+async function serveDownload(rel: string, res: import("http").ServerResponse): Promise<boolean> {
+  const clean = decodeURIComponent(rel);
+  if (clean.includes("..")) {
+    res.statusCode = 400;
+    res.end("bad path");
+    return true;
+  }
+  const abs = path.join(env.downloadsDir, clean);
+  try {
+    const stat = await fs.stat(abs);
+    if (!stat.isFile()) return false;
+    res.setHeader("Content-Type", MIME[path.extname(abs).toLowerCase()] ?? "application/octet-stream");
+    // Installers are large + versioned; scripts/metadata must stay fresh.
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Content-Length", String(stat.size));
+    createReadStream(abs).pipe(res);
+    return true;
+  } catch {
+    res.statusCode = 404;
+    res.end("not found");
+    return true;
+  }
+}
+
 async function main() {
   await app.prepare();
 
   const server = createServer((req, res) => {
     const parsedUrl = parse(req.url ?? "", true);
-    if (parsedUrl.pathname?.startsWith("/uploads/screenshots/")) {
-      void serveUpload(parsedUrl.pathname, res);
+    const pathname = parsedUrl.pathname ?? "";
+    if (pathname.startsWith("/uploads/screenshots/")) {
+      void serveUpload(pathname, res);
+      return;
+    }
+    // Public installer downloads: /downloads/<file>
+    if (pathname.startsWith("/downloads/")) {
+      void serveDownload(pathname.replace(/^\/downloads\//, ""), res);
+      return;
+    }
+    // Install bootstrap scripts fetched by the one-line installer.
+    if (pathname === "/install.ps1" || pathname === "/install.sh") {
+      void serveDownload(pathname.replace(/^\//, ""), res);
       return;
     }
     void handle(req, res, parsedUrl);
