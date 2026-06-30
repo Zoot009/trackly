@@ -40,6 +40,7 @@
     "electronVersion": "33.2.1",
     "directories": { "output": "release" },
     "files": ["dist/**/*", "assets/**/*", "static/**/*"],
+    "asarUnpack": ["**/node_modules/sharp/**", "**/node_modules/@img/**"],
     "win": { "target": ["nsis"], "artifactName": "Trackly-Setup.${ext}" },
     "mac": {
       "target": ["dmg"],
