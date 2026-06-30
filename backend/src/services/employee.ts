@@ -22,6 +22,7 @@ export interface EmployeeStats {
   };
   topApps: { name: string; seconds: number; productivity: Productivity }[];
   topWebsites: { domain: string; seconds: number; productivity: Productivity }[];
+  topWindows: { title: string; seconds: number }[];
   daily: {
     day: string;
     activeHours: number;
@@ -40,7 +41,7 @@ export async function getEmployeeStats(
   const dayEnd = new Date(day.getTime() + 24 * 60 * 60 * 1000);
   const rangeStart = new Date(day.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
 
-  const [appAgg, webAgg, worked, idle, appByDay, webByDay, activityByDay] = await Promise.all([
+  const [appAgg, webAgg, worked, idle, appByDay, webByDay, activityByDay, windowAgg] = await Promise.all([
     prisma.applicationUsage.groupBy({
       by: ["appName", "productivity"],
       where: { employeeId, date: day },
@@ -80,6 +81,17 @@ export async function getEmployeeStats(
       rangeStart,
       dayEnd,
     ),
+    // Window / tab titles for the selected day (e.g. "YouTube - <video>").
+    prisma.activityLog.groupBy({
+      by: ["windowTitle"],
+      where: {
+        employeeId,
+        state: "ACTIVE",
+        startedAt: { gte: day, lt: dayEnd },
+        windowTitle: { not: null },
+      },
+      _sum: { durationSec: true },
+    }),
   ]);
 
   // Selected-day productivity totals.
@@ -98,6 +110,11 @@ export async function getEmployeeStats(
     .map((w) => ({ domain: w.domain, seconds: w._sum.totalSeconds ?? 0, productivity: w.productivity }))
     .sort((a, b) => b.seconds - a.seconds)
     .slice(0, 10);
+  const topWindows = windowAgg
+    .map((w) => ({ title: w.windowTitle ?? "", seconds: w._sum.durationSec ?? 0 }))
+    .filter((w) => w.title)
+    .sort((a, b) => b.seconds - a.seconds)
+    .slice(0, 15);
 
   // Build the trailing daily series (one row per day in range).
   const dayKey = (d: Date) => d.toISOString().slice(0, 10);
@@ -132,6 +149,7 @@ export async function getEmployeeStats(
     },
     topApps,
     topWebsites,
+    topWindows,
     daily: Array.from(series.values()),
   };
 }

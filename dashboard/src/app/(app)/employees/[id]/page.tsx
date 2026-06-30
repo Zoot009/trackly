@@ -113,21 +113,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         <DeployAgent token={employee.enrollmentToken} employeeName={employee.name} />
       )}
 
-      {/* Day metrics */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {isLoading || !summary ? (
-          Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
-        ) : (
-          <>
-            <StatCard label="Worked" value={formatDuration(summary.workedSeconds)} />
-            <StatCard label="Idle" value={formatDuration(summary.idleSeconds)} />
-            <StatCard label="Productive" value={formatDuration(summary.productiveSeconds)} />
-            <StatCard label="Unproductive" value={formatDuration(summary.unproductiveSeconds)} />
-            <StatCard label="Activity" value={`${summary.activityPercent}%`} />
-          </>
-        )}
-      </div>
-
+      {/* Charts first */}
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader>
@@ -156,16 +142,31 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         </Card>
       </div>
 
+      {/* Day metrics */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {isLoading || !summary ? (
+          Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
+        ) : (
+          <>
+            <StatCard label="Worked" value={formatDuration(summary.workedSeconds)} />
+            <StatCard label="Idle" value={formatDuration(summary.idleSeconds)} />
+            <StatCard label="Productive" value={formatDuration(summary.productiveSeconds)} />
+            <StatCard label="Unproductive" value={formatDuration(summary.unproductiveSeconds)} />
+            <StatCard label="Activity" value={`${summary.activityPercent}%`} />
+          </>
+        )}
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <UsageTable
           title="Application Usage"
           isLoading={isLoading}
           rows={stats?.topApps.map((a) => ({ name: a.name, seconds: a.seconds, productivity: a.productivity }))}
         />
-        <UsageTable
-          title="Website Usage"
+        <WindowsTable
+          title="Windows / Tabs"
           isLoading={isLoading}
-          rows={stats?.topWebsites.map((w) => ({ name: w.domain, seconds: w.seconds, productivity: w.productivity }))}
+          rows={stats?.topWindows}
         />
       </div>
 
@@ -233,6 +234,58 @@ function UsageTable({
                     <Badge variant={PRODUCTIVITY_VARIANT[r.productivity as keyof typeof PRODUCTIVITY_VARIANT]}>
                       {r.productivity.toLowerCase()}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{formatDuration(r.seconds)}</TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function WindowsTable({
+  title,
+  rows,
+  isLoading,
+}: {
+  title: string;
+  rows?: { title: string; seconds: number }[];
+  isLoading: boolean;
+}) {
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Window / Tab</TableHead>
+              <TableHead className="text-right">Time</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={2}>
+                  <Skeleton className="h-8 w-full" />
+                </TableCell>
+              </TableRow>
+            ) : !rows || rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={2} className="py-8 text-center text-muted-foreground">
+                  No data for this date.
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((r, i) => (
+                <TableRow key={`${r.title}-${i}`}>
+                  <TableCell className="max-w-0 truncate font-medium" title={r.title}>
+                    {r.title}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{formatDuration(r.seconds)}</TableCell>
                 </TableRow>

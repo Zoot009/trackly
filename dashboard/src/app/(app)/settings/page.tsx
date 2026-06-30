@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { settingsSchema, type SettingsInput } from "@flowace/shared";
 import { PageHeader } from "@/components/page-header";
@@ -12,8 +12,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSettings, useUpdateSettings } from "@/hooks/queries";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  useSettings,
+  useUpdateSettings,
+  useCreateRule,
+  useDeleteRule,
+  type ProductivityRuleInput,
+} from "@/hooks/queries";
 
 export default function SettingsPage() {
   const { data, isLoading } = useSettings();
@@ -148,7 +156,124 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </form>
+
+      <ProductivityRules rules={data?.productivityRules ?? []} />
     </>
+  );
+}
+
+const PRODUCTIVITY_VARIANT = {
+  PRODUCTIVE: "default",
+  UNPRODUCTIVE: "muted",
+  NEUTRAL: "secondary",
+} as const;
+
+function ProductivityRules({
+  rules,
+}: {
+  rules: { id: string; pattern: string; type: "APP" | "WEBSITE"; productivity: string }[];
+}) {
+  const create = useCreateRule();
+  const remove = useDeleteRule();
+  const [pattern, setPattern] = useState("");
+  const [type, setType] = useState<ProductivityRuleInput["type"]>("APP");
+  const [productivity, setProductivity] = useState<ProductivityRuleInput["productivity"]>("PRODUCTIVE");
+
+  async function addRule() {
+    const value = pattern.trim();
+    if (!value) return;
+    try {
+      await create.mutateAsync({ pattern: value, type, productivity });
+      setPattern("");
+      toast.success("Rule added");
+    } catch {
+      toast.error("Failed to add rule");
+    }
+  }
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>Productivity rules</CardTitle>
+        <CardDescription>
+          Classify apps and websites as productive, neutral or unproductive. Matching is
+          case-insensitive (substring, or use <code>*</code> as a wildcard). Applies to activity going
+          forward.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Add rule */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div className="flex-1 space-y-2">
+            <Label>Pattern (app name or domain)</Label>
+            <Input
+              placeholder="e.g. Visual Studio Code, youtube, slack"
+              value={pattern}
+              onChange={(e) => setPattern(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addRule()}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Type</Label>
+            <Select value={type} onValueChange={(v) => setType(v as ProductivityRuleInput["type"])}>
+              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="APP">App</SelectItem>
+                <SelectItem value="WEBSITE">Website</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Productivity</Label>
+            <Select
+              value={productivity}
+              onValueChange={(v) => setProductivity(v as ProductivityRuleInput["productivity"])}
+            >
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PRODUCTIVE">Productive</SelectItem>
+                <SelectItem value="NEUTRAL">Neutral</SelectItem>
+                <SelectItem value="UNPRODUCTIVE">Unproductive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={addRule} disabled={create.isPending || !pattern.trim()}>
+            <Plus className="h-4 w-4" /> Add
+          </Button>
+        </div>
+
+        {/* Existing rules */}
+        <div className="divide-y rounded-lg border">
+          {rules.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              No rules yet. Add one above — anything unmatched stays Neutral.
+            </p>
+          ) : (
+            rules.map((r) => (
+              <div key={r.id} className="flex items-center justify-between gap-2 p-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Badge variant="secondary">{r.type === "APP" ? "App" : "Website"}</Badge>
+                  <span className="truncate font-medium">{r.pattern}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant={PRODUCTIVITY_VARIANT[r.productivity as keyof typeof PRODUCTIVITY_VARIANT]}>
+                    {r.productivity.toLowerCase()}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => remove.mutate(r.id)}
+                    aria-label="Delete rule"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

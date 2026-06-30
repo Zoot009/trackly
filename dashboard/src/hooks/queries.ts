@@ -41,6 +41,7 @@ export interface EmployeeStatsResponse {
   };
   topApps: { name: string; seconds: number; productivity: string }[];
   topWebsites: { domain: string; seconds: number; productivity: string }[];
+  topWindows: { title: string; seconds: number }[];
   daily: {
     day: string;
     activeHours: number;
@@ -153,6 +154,28 @@ export function useUpdateSettings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: Partial<AppSettings>) => apiClient.patch<AppSettings>("/api/settings", input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+  });
+}
+
+export interface ProductivityRuleInput {
+  pattern: string;
+  type: "APP" | "WEBSITE";
+  productivity: "PRODUCTIVE" | "NEUTRAL" | "UNPRODUCTIVE";
+}
+
+export function useCreateRule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ProductivityRuleInput) => apiClient.post("/api/settings/rules", input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+  });
+}
+
+export function useDeleteRule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/api/settings/rules/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
   });
 }
