@@ -23,7 +23,6 @@
     "electron-store": "^8.2.0",
     "electron-updater": "^6.3.9",
     "form-data": "^4.0.1",
-    "sharp": "^0.33.5",
     "socket.io-client": "^4.8.1",
     "uiohook-napi": "^1.5.4"
   },
@@ -40,7 +39,6 @@
     "electronVersion": "33.2.1",
     "directories": { "output": "release" },
     "files": ["dist/**/*", "assets/**/*", "static/**/*"],
-    "asarUnpack": ["**/node_modules/sharp/**", "**/node_modules/@img/**"],
     "win": { "target": ["nsis"], "artifactName": "Trackly-Setup.${ext}" },
     "mac": {
       "target": ["dmg"],
