@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@flowace/shared": "*",
-    "active-win": "^7.7.2",
+    "@paymoapp/active-window": "^2.1.4",
     "better-sqlite3": "^11.7.0",
     "electron-log": "^5.2.4",
     "electron-store": "^8.2.0",
@@ -37,16 +37,35 @@
     "appId": "com.trackly.agent",
     "productName": "Trackly",
     "electronVersion": "33.2.1",
-    "directories": { "output": "release" },
-    "files": ["dist/**/*", "assets/**/*", "static/**/*"],
-    "win": { "target": ["nsis"], "artifactName": "Trackly-Setup.${ext}" },
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*",
+      "static/**/*"
+    ],
+    "asarUnpack": [
+      "**/node_modules/@paymoapp/active-window/**"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "Trackly-Setup.${ext}"
+    },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "category": "public.app-category.productivity",
       "artifactName": "Trackly.${ext}"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Utility",
       "artifactName": "Trackly.${ext}"
     },
@@ -56,6 +75,11 @@
       "runAfterFinish": true,
       "allowElevation": true
     },
-    "publish": [{ "provider": "generic", "url": "https://tracker.zootcloud.com/downloads" }]
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://tracker.zootcloud.com/downloads"
+      }
+    ]
   }
 }
