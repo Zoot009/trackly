@@ -108,7 +108,8 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         </CardContent>
       </Card>
 
-      {employee?.enrollmentToken && (
+      {/* Show the install command only until the agent first reports in. */}
+      {employee?.enrollmentToken && !employee.lastSeen && (
         <DeployAgent token={employee.enrollmentToken} employeeName={employee.name} />
       )}
 
