@@ -45,11 +45,30 @@ $Installer = Join-Path $env:TEMP "Trackly-Setup.exe"
 Invoke-WebRequest -Uri "$DownloadBase/downloads/Trackly-Setup.exe" -OutFile $Installer
 Start-Process -FilePath $Installer -ArgumentList "/S" -Wait
 
-# 3. Launch the agent (installed under Program Files for a per-machine install).
 $AppExe = Join-Path $env:ProgramFiles "Trackly\Trackly.exe"
+
+# 3. Register a machine-wide Scheduled Task so the agent auto-starts for EVERY
+#    user at logon, restarts if it ever stops, and has no run-time limit. Being
+#    admin-created, a standard employee account cannot delete or disable it.
+try {
+  $action    = New-ScheduledTaskAction -Execute $AppExe
+  $trigger   = New-ScheduledTaskTrigger -AtLogOn
+  # S-1-5-32-545 = BUILTIN\Users (locale-independent) -> runs in each user's session.
+  $principal = New-ScheduledTaskPrincipal -GroupId "S-1-5-32-545" -RunLevel Limited
+  $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+                 -StartWhenAvailable -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
+                 -ExecutionTimeLimit ([TimeSpan]::Zero)
+  Register-ScheduledTask -TaskName "TracklyAgent" -Action $action -Trigger $trigger `
+    -Principal $principal -Settings $settings -Force | Out-Null
+  Write-Host "Registered auto-start task (runs at every logon, restarts on failure)."
+} catch {
+  Write-Warning "Could not register scheduled task: $_"
+}
+
+# 4. Launch it now (it also auto-starts at every subsequent logon).
 if (Test-Path $AppExe) {
   Start-Process -FilePath $AppExe
-  Write-Host "Trackly installed and running. It starts automatically at login."
+  Write-Host "Trackly installed and running. It auto-starts at logon and stays running."
 } else {
   Write-Warning "Installed, but could not locate Trackly.exe. It will start at next login."
 }
