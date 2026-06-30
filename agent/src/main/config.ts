@@ -11,6 +11,9 @@ interface AgentConfigShape {
   deviceId: string | null;
   employeeId: string | null;
   employeeName: string | null;
+  // The enrollment (provision) token we last registered with — lets us detect
+  // a reinstall for a different employee and re-enroll instead of staying stale.
+  enrolledToken: string | null;
   // Last known monitoring config from the server.
   screenshotIntervalSec: number;
   idleTimeoutSec: number;
@@ -27,6 +30,7 @@ const store = new Store<AgentConfigShape>({
     deviceId: null,
     employeeId: null,
     employeeName: null,
+    enrolledToken: null,
     screenshotIntervalSec: 300,
     idleTimeoutSec: 180,
     screenshotQuality: 70,

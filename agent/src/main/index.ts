@@ -89,21 +89,30 @@ app.on("second-instance", () => logger.info("Second instance blocked"));
  * when no token is present do we fall back to the manual enrollment window.
  */
 async function ensureEnrolled(): Promise<boolean> {
-  if (config.isEnrolled()) return true;
-
   const provision = await readProvision();
-  if (provision?.enrollmentToken) {
-    if (provision.serverUrl) config.set("serverUrl", provision.serverUrl);
+  if (provision?.serverUrl) config.set("serverUrl", provision.serverUrl);
+
+  const provisionedToken = provision?.enrollmentToken;
+  const alreadyEnrolled = config.isEnrolled();
+  // Re-enroll if the machine was (re)provisioned with a DIFFERENT token, e.g.
+  // reinstalled for another employee. Otherwise keep the existing enrollment.
+  const tokenChanged = !!provisionedToken && config.get("enrolledToken") !== provisionedToken;
+
+  if (alreadyEnrolled && !tokenChanged) return true;
+
+  if (provisionedToken) {
     try {
-      await enrollWithToken(provision.enrollmentToken);
+      await enrollWithToken(provisionedToken);
       await clearProvision();
       return true;
     } catch (err) {
       logger.warn("Silent enrollment failed; will retry on next launch", err);
-      // No interactive prompt in a provisioned (silent) deployment.
-      return false;
+      // Keep running on the prior enrollment if we had one; no UI in silent mode.
+      return alreadyEnrolled;
     }
   }
+
+  if (alreadyEnrolled) return true;
 
   // Manual fallback (development / hand installs).
   await runEnrollment();

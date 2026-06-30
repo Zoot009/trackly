@@ -17,6 +17,7 @@ export async function enrollWithToken(token: string): Promise<void> {
   config.set("deviceId", res.deviceId);
   config.set("employeeId", res.employeeId);
   config.set("employeeName", res.employeeName);
+  config.set("enrolledToken", token);
   logger.info(`Enrolled as ${res.employeeName} (${res.employeeId})`);
 }
 
