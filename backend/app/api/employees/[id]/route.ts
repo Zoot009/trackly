@@ -30,7 +30,8 @@ export const PATCH = handler(async (req: NextRequest, ctx: Ctx) => {
 export const DELETE = handler(async (req: NextRequest, ctx: Ctx) => {
   requireAdmin(req);
   const { id } = await ctx.params;
-  // Soft-delete to preserve historical activity.
-  await prisma.employee.update({ where: { id }, data: { active: false } });
+  // Hard-delete: removes the employee and cascades to their devices, activity
+  // logs, usage aggregates and screenshots (see schema onDelete: Cascade).
+  await prisma.employee.delete({ where: { id } });
   return ok({ success: true });
 });

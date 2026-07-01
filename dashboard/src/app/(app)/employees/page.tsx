@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -50,13 +51,17 @@ export default function EmployeesPage() {
     status: status === "all" ? undefined : status,
   });
   const del = useDeleteEmployee();
+  const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
 
-  async function handleDelete(id: string, name: string) {
+  async function confirmDelete() {
+    if (!toDelete) return;
     try {
-      await del.mutateAsync(id);
-      toast.success(`Removed ${name}`);
+      await del.mutateAsync(toDelete.id);
+      toast.success(`Removed ${toDelete.name}`);
     } catch {
       toast.error("Failed to remove employee");
+    } finally {
+      setToDelete(null);
     }
   }
 
@@ -179,7 +184,7 @@ export default function EmployeesPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
-                            onClick={() => handleDelete(emp.id, emp.name)}
+                            onClick={() => setToDelete({ id: emp.id, name: emp.name })}
                           >
                             <Trash2 className="h-4 w-4" /> Remove
                           </DropdownMenuItem>
@@ -195,6 +200,26 @@ export default function EmployeesPage() {
       </Card>
 
       <AddEmployeeDialog open={addOpen} onOpenChange={setAddOpen} />
+
+      <Dialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove {toDelete?.name}?</DialogTitle>
+            <DialogDescription>
+              This permanently deletes {toDelete?.name} and all their data — devices, activity,
+              usage and screenshots. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setToDelete(null)} disabled={del.isPending}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={del.isPending}>
+              {del.isPending ? "Removing…" : "Remove"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
