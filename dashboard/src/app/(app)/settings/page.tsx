@@ -73,6 +73,15 @@ export default function SettingsPage() {
 
   const monitoring = watch("monitoringEnabled");
   const timezone = watch("timezone");
+  const retentionDays = watch("dataRetentionDays");
+  const retentionSince =
+    retentionDays && retentionDays > 0
+      ? new Date(Date.now() - retentionDays * 86_400_000).toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
+      : null;
   const timezones =
     typeof (Intl as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf === "function"
       ? (Intl as { supportedValuesOf: (k: string) => string[] }).supportedValuesOf("timeZone")
@@ -152,6 +161,12 @@ export default function SettingsPage() {
             <Field label="Retention period (days)" error={errors.dataRetentionDays?.message}>
               <Input type="number" {...register("dataRetentionDays", { valueAsNumber: true })} />
             </Field>
+            {retentionSince && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Keeping data from <span className="font-medium text-foreground">{retentionSince}</span> to
+                today. Anything older is deleted automatically each day.
+              </p>
+            )}
           </CardContent>
         </Card>
 
