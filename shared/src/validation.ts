@@ -59,6 +59,7 @@ export const settingsSchema = z.object({
   screenshotQuality: z.number().int().min(1).max(100),
   workdayStart: z.string().regex(/^\d{2}:\d{2}$/),
   workdayEnd: z.string().regex(/^\d{2}:\d{2}$/),
+  timezone: z.string().min(1),
   dataRetentionDays: z.number().int().min(1).max(3650),
   monitoringEnabled: z.boolean(),
 });

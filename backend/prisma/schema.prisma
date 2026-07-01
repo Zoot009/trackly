@@ -203,8 +203,9 @@ model Settings {
   screenshotIntervalSec Int      @default(300)
   idleTimeoutSec        Int      @default(180)
   screenshotQuality     Int      @default(70)
-  workdayStart          String   @default("09:00")
-  workdayEnd            String   @default("18:00")
+  workdayStart          String   @default("00:00")
+  workdayEnd            String   @default("23:59")
+  timezone              String   @default("UTC")
   dataRetentionDays     Int      @default(90)
   monitoringEnabled     Boolean  @default(true)
   updatedAt             DateTime @updatedAt

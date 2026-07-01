@@ -44,6 +44,7 @@ export default function SettingsPage() {
         screenshotQuality: data.screenshotQuality,
         workdayStart: data.workdayStart,
         workdayEnd: data.workdayEnd,
+        timezone: data.timezone,
         dataRetentionDays: data.dataRetentionDays,
         monitoringEnabled: data.monitoringEnabled,
       });
@@ -70,6 +71,11 @@ export default function SettingsPage() {
   }
 
   const monitoring = watch("monitoringEnabled");
+  const timezone = watch("timezone");
+  const timezones =
+    typeof (Intl as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf === "function"
+      ? (Intl as { supportedValuesOf: (k: string) => string[] }).supportedValuesOf("timeZone")
+      : ["UTC", "Asia/Kolkata", "America/New_York", "Europe/London"];
 
   return (
     <>
@@ -112,6 +118,39 @@ export default function SettingsPage() {
             <Field label="Idle timeout (seconds)" error={errors.idleTimeoutSec?.message}>
               <Input type="number" {...register("idleTimeoutSec", { valueAsNumber: true })} />
             </Field>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Working hours</CardTitle>
+            <CardDescription>
+              Only count activity within these hours in your timezone. Leave as 00:00 → 23:59 to
+              count the whole day.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Field label="Timezone">
+              <Select
+                value={timezone}
+                onValueChange={(v) => setValue("timezone", v, { shouldDirty: true })}
+              >
+                <SelectTrigger><SelectValue placeholder="Select timezone" /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {timezones.map((tz) => (
+                    <SelectItem key={tz} value={tz}>{tz}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Workday start" error={errors.workdayStart?.message}>
+                <Input type="time" {...register("workdayStart")} />
+              </Field>
+              <Field label="Workday end" error={errors.workdayEnd?.message}>
+                <Input type="time" {...register("workdayEnd")} />
+              </Field>
+            </div>
           </CardContent>
         </Card>
 

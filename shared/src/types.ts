@@ -100,6 +100,7 @@ export interface AppSettings {
   screenshotQuality: number;
   workdayStart: string; // "09:00"
   workdayEnd: string; // "18:00"
+  timezone: string; // IANA, e.g. "Asia/Kolkata"
   dataRetentionDays: number;
   monitoringEnabled: boolean;
   productivityRules: ProductivityRule[];
