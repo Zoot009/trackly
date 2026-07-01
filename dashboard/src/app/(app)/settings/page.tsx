@@ -27,6 +27,7 @@ import {
 export default function SettingsPage() {
   const { data, isLoading } = useSettings();
   const update = useUpdateSettings();
+  const [privateInput, setPrivateInput] = useState("");
 
   const {
     register,
@@ -75,7 +76,6 @@ export default function SettingsPage() {
   const monitoring = watch("monitoringEnabled");
   const timezone = watch("timezone");
   const privateApps = watch("privateApps") ?? [];
-  const [privateInput, setPrivateInput] = useState("");
 
   function addPrivateApp() {
     const v = privateInput.trim();
