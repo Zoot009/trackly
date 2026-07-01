@@ -22,6 +22,7 @@ import { env } from "./src/lib/env";
 import { registerIo, DASHBOARD_ROOM } from "./src/lib/realtime";
 import { verifyAdminToken, verifyAgentToken } from "./src/lib/auth";
 import { registerAgentGateway } from "./src/realtime/agentGateway";
+import { runRetentionCleanup } from "./src/services/retention";
 
 const dev = env.nodeEnv !== "production";
 const app = next({ dev });
@@ -153,6 +154,17 @@ async function main() {
   });
 
   registerIo(io);
+
+  // Data-retention cleanup: shortly after boot, then once a day.
+  const cleanup = () => {
+    runRetentionCleanup()
+      .then((r) =>
+        console.log(`[retention] removed ${r.screenshots} screenshots, ${r.logs} logs, ${r.usage} usage rows`),
+      )
+      .catch((err) => console.error("[retention] cleanup failed", err));
+  };
+  setTimeout(cleanup, 60_000);
+  setInterval(cleanup, 24 * 60 * 60 * 1000);
 
   server.listen(env.port, () => {
     console.log(`> Trackly backend ready on http://localhost:${env.port} (${env.nodeEnv})`);

@@ -106,20 +106,12 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Activity</CardTitle>
-            <CardDescription>Idle detection and working hours.</CardDescription>
+            <CardDescription>Idle detection — how long with no input counts as idle.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Field label="Idle timeout (seconds)" error={errors.idleTimeoutSec?.message}>
               <Input type="number" {...register("idleTimeoutSec", { valueAsNumber: true })} />
             </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Workday start" error={errors.workdayStart?.message}>
-                <Input type="time" {...register("workdayStart")} />
-              </Field>
-              <Field label="Workday end" error={errors.workdayEnd?.message}>
-                <Input type="time" {...register("workdayEnd")} />
-              </Field>
-            </div>
           </CardContent>
         </Card>
 
