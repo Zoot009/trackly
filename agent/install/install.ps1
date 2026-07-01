@@ -33,16 +33,20 @@ $Installer = Join-Path $env:TEMP "Trackly-Setup.exe"
 Invoke-WebRequest -Uri "$DownloadBase/downloads/Trackly-Setup.exe" -OutFile $Installer
 Start-Process -FilePath $Installer -ArgumentList "/S" -Wait
 
-# 3. Best-effort firewall rule for WebRTC live view. Silently ignored if the
-#    user isn't allowed to add it (no admin) — outbound is usually allowed anyway.
-$AppExe = Join-Path $env:LOCALAPPDATA "Programs\Trackly\Trackly.exe"
-try {
-  New-NetFirewallRule -DisplayName "Trackly Agent (In)" -Direction Inbound -Program $AppExe `
-    -Action Allow -Profile Any -ErrorAction SilentlyContinue | Out-Null
-} catch { }
+# 3. Locate the installed exe (electron-builder's per-user folder name can vary).
+$AppExe = Get-ChildItem (Join-Path $env:LOCALAPPDATA "Programs") -Recurse -Filter "Trackly.exe" `
+  -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+
+# Best-effort firewall rule for WebRTC live view (ignored without admin).
+if ($AppExe) {
+  try {
+    New-NetFirewallRule -DisplayName "Trackly Agent (In)" -Direction Inbound -Program $AppExe `
+      -Action Allow -Profile Any -ErrorAction SilentlyContinue | Out-Null
+  } catch { }
+}
 
 # 4. Launch it now. The app registers itself to auto-start at every login.
-if (Test-Path $AppExe) {
+if ($AppExe -and (Test-Path $AppExe)) {
   Start-Process -FilePath $AppExe
   Write-Host "Trackly installed and running. It auto-starts at login and updates itself."
 } else {
