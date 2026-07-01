@@ -57,7 +57,7 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="admin@flowace.dev" {...register("email")} />
+                <Input id="email" type="email" placeholder="you@company.com" {...register("email")} />
                 {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
               </div>
               <div className="space-y-2">
@@ -72,10 +72,6 @@ export default function LoginPage() {
             </form>
           </CardContent>
         </Card>
-
-        <p className="text-center text-xs text-muted-foreground">
-          Demo credentials: admin@flowace.dev / admin12345
-        </p>
       </div>
     </div>
   );
