@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, Save, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { settingsSchema, type SettingsInput } from "@flowace/shared";
 import { PageHeader } from "@/components/page-header";
@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UnsavedBar } from "@/components/unsaved-bar";
 import {
   useSettings,
   useUpdateSettings,
@@ -82,12 +83,6 @@ export default function SettingsPage() {
       <PageHeader
         title="Settings"
         description="Configure how the desktop agent monitors employees."
-        actions={
-          <Button onClick={handleSubmit(onSubmit)} disabled={!isDirty || update.isPending}>
-            {update.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Save changes
-          </Button>
-        }
       />
 
       <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6 lg:grid-cols-2">
@@ -183,6 +178,13 @@ export default function SettingsPage() {
       </form>
 
       <ProductivityRules rules={data?.productivityRules ?? []} />
+
+      <UnsavedBar
+        show={isDirty}
+        saving={update.isPending}
+        onReset={() => reset()}
+        onSave={handleSubmit(onSubmit)}
+      />
     </>
   );
 }
