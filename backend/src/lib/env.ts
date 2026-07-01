@@ -27,5 +27,9 @@ export const env = {
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean),
+  // WebRTC live-view TURN server. Empty secret disables TURN (STUN-only).
+  turnSecret: process.env.TURN_SECRET ?? "",
+  turnHost: process.env.TURN_HOST ?? "tracker.zootcloud.com",
+  turnPort: Number(process.env.TURN_PORT ?? 3478),
   isProd: (process.env.NODE_ENV ?? "development") === "production",
 } as const;

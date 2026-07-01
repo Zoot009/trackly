@@ -29,6 +29,9 @@ export function registerAgentGateway(_io: SocketServer, socket: Socket): void {
   const agent = socket.data.agent as AgentTokenPayload;
   const { employeeId, sub: deviceId } = agent;
 
+  // Join a per-employee room so live-view signaling can reach this machine.
+  void socket.join(`agent:${employeeId}`);
+
   void sendConfig(socket);
 
   socket.on(SOCKET_EVENTS.AGENT_HEARTBEAT, async (payload: HeartbeatPayload) => {

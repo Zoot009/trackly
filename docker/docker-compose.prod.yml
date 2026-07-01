@@ -22,6 +22,10 @@ services:
       DOWNLOADS_DIR: /data/downloads
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?e.g. https://tracker.zootcloud.com}
       CORS_ORIGIN: ${CORS_ORIGIN:?dashboard origin(s), comma-separated}
+      # WebRTC live view (TURN). Empty TURN_SECRET disables TURN (STUN only).
+      TURN_SECRET: ${TURN_SECRET:-}
+      TURN_HOST: ${TRACKLY_DOMAIN}
+      TURN_PORT: "3478"
     volumes:
       - uploads:/data/uploads/screenshots
       # Drop built installers + install scripts here on the VPS; served at /downloads.
@@ -46,6 +50,27 @@ services:
       - traefik.http.middlewares.trackly-redirect.redirectscheme.scheme=https
       # Tell Traefik which port the app listens on
       - traefik.http.services.trackly.loadbalancer.server.port=4000
+
+  # TURN/STUN relay for WebRTC live view. Uses host networking (recommended for
+  # TURN) so it binds the VPS's public IP directly. Open these ports in the VPS
+  # firewall: 3478/tcp, 3478/udp, and 49160-49200/udp.
+  coturn:
+    image: coturn/coturn:4.6-alpine
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - -n
+      - --log-file=stdout
+      - --listening-port=3478
+      - --min-port=49160
+      - --max-port=49200
+      - --realm=${TRACKLY_DOMAIN}
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SECRET:?set TURN_SECRET for live view}
+      - --external-ip=${TURN_EXTERNAL_IP:?set TURN_EXTERNAL_IP to the VPS public IP}
+      - --no-cli
+      - --no-tls
+      - --no-dtls
 
 volumes:
   uploads:

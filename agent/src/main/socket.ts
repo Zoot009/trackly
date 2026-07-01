@@ -11,6 +11,7 @@ import {
 import type { CachedSample } from "./db";
 import { config } from "./config";
 import { logger } from "./logger";
+import { startLive, onAnswer, onRemoteIce, stopLive } from "./live";
 
 /**
  * Maintains a resilient socket connection to the backend. Publishes heartbeats
@@ -45,6 +46,15 @@ export class AgentSocket {
       logger.info("Received config from server");
       onConfig(cfg);
     });
+
+    // WebRTC live-view: the backend asks us to start streaming our screen.
+    this.socket.on("live:start", ({ sessionId, iceServers }: { sessionId: string; iceServers: unknown }) => {
+      startLive(sessionId, iceServers, (event, data) => this.socket?.emit(event, data));
+    });
+    this.socket.on("live:answer", ({ sdp }: { sdp: unknown }) => onAnswer(sdp));
+    this.socket.on("live:ice", ({ candidate }: { candidate: unknown }) => onRemoteIce(candidate));
+    this.socket.on("live:stop", () => stopLive());
+    this.socket.on("disconnect", () => stopLive());
 
     this.startHeartbeat();
   }

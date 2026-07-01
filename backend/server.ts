@@ -22,6 +22,7 @@ import { env } from "./src/lib/env";
 import { registerIo, DASHBOARD_ROOM } from "./src/lib/realtime";
 import { verifyAdminToken, verifyAgentToken } from "./src/lib/auth";
 import { registerAgentGateway } from "./src/realtime/agentGateway";
+import { registerLiveSignaling } from "./src/realtime/liveSignaling";
 import { runRetentionCleanup } from "./src/services/retention";
 
 const dev = env.nodeEnv !== "production";
@@ -151,6 +152,8 @@ async function main() {
     } else if (socket.data.agent) {
       registerAgentGateway(io, socket);
     }
+    // WebRTC live-view signaling for both admins (viewers) and agents (senders).
+    registerLiveSignaling(io, socket);
   });
 
   registerIo(io);

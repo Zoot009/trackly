@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Radio } from "lucide-react";
 import { formatDuration } from "@flowace/shared";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
@@ -12,6 +12,7 @@ import { ProductivityBar } from "@/components/charts/productivity-bar";
 import { ActiveIdleChart } from "@/components/charts/active-idle-chart";
 import { ScreenshotPreview } from "@/components/screenshot-preview";
 import { DeployAgent } from "@/components/deploy-agent";
+import { LiveView } from "@/components/live-view";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +51,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const [date, setDate] = useState(today());
   const [days, setDays] = useState("7");
+  const [liveOpen, setLiveOpen] = useState(false);
 
   const { data: employee } = useEmployee(id);
   const { data: stats, isLoading } = useEmployeeStats(id, date, Number(days));
@@ -66,12 +68,24 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         title={employee?.name ?? "Employee"}
         description={employee?.email}
         actions={
-          <Button variant="outline" asChild>
-            <Link href="/employees">
-              <ArrowLeft className="h-4 w-4" /> All employees
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setLiveOpen(true)}>
+              <Radio className="h-4 w-4" /> Live view
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/employees">
+                <ArrowLeft className="h-4 w-4" /> All employees
+              </Link>
+            </Button>
+          </div>
         }
+      />
+
+      <LiveView
+        employeeId={id}
+        employeeName={employee?.name ?? "Employee"}
+        open={liveOpen}
+        onOpenChange={setLiveOpen}
       />
 
       {/* Identity + live snapshot */}
