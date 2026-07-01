@@ -26,5 +26,9 @@ export async function runRetentionCleanup(): Promise<{ screenshots: number; logs
   const appDel = await prisma.applicationUsage.deleteMany({ where: { date: { lt: dayCutoff } } });
   const webDel = await prisma.websiteUsage.deleteMany({ where: { date: { lt: dayCutoff } } });
 
+  // Purge junk "website" rows captured from window titles (no real domain, e.g.
+  // "portal", "settings") that predate the stricter extractDomain.
+  await prisma.websiteUsage.deleteMany({ where: { NOT: { domain: { contains: "." } } } });
+
   return { screenshots: oldShots.length, logs: logs.count, usage: appDel.count + webDel.count };
 }

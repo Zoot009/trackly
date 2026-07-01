@@ -20,12 +20,18 @@ export function activityPercent(workedSeconds: number, idleSeconds: number): num
   return Math.round((workedSeconds / total) * 100);
 }
 
-/** Extract a bare domain from a URL or window title heuristic. */
+/** Extract a bare domain from a URL. Returns null for anything that isn't a real
+ * domain (e.g. window-title fragments like "portal" or "Settings"), so those
+ * don't pollute website usage. */
 export function extractDomain(input: string | null | undefined): string | null {
   if (!input) return null;
   try {
-    const url = input.includes("://") ? input : `https://${input}`;
-    return new URL(url).hostname.replace(/^www\./, "");
+    const raw = input.trim();
+    const url = raw.includes("://") ? raw : `https://${raw}`;
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    // Require a dot + a letter TLD (e.g. example.com) — rejects bare words.
+    if (!/\.[a-z]{2,}$/i.test(host)) return null;
+    return host;
   } catch {
     return null;
   }

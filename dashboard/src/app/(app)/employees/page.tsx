@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { MoreHorizontal, Search, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -40,6 +40,7 @@ import { AddEmployeeDialog } from "@/components/add-employee-dialog";
 import { initials } from "@/lib/utils";
 
 export default function EmployeesPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [addOpen, setAddOpen] = useState(false);
@@ -127,17 +128,21 @@ export default function EmployeesPage() {
             ) : (
               data.map((emp) => {
                 return (
-                  <TableRow key={emp.id}>
+                  <TableRow
+                    key={emp.id}
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/employees/${emp.id}`)}
+                  >
                     <TableCell>
-                      <Link href={`/employees/${emp.id}`} className="flex items-center gap-3 group">
+                      <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
                           <AvatarFallback>{initials(emp.name)}</AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="truncate font-medium group-hover:underline">{emp.name}</p>
+                          <p className="truncate font-medium">{emp.name}</p>
                           <p className="truncate text-xs text-muted-foreground">{emp.email}</p>
                         </div>
-                      </Link>
+                      </div>
                     </TableCell>
                     <TableCell>
                       {emp.department ? (
@@ -164,7 +169,7 @@ export default function EmployeesPage() {
                     <TableCell className="text-muted-foreground">
                       {emp.lastSeen ? format(new Date(emp.lastSeen), "MMM d, HH:mm") : "—"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon">
