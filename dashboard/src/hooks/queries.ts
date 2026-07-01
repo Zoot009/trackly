@@ -39,6 +39,15 @@ export interface EmployeeStatsResponse {
     neutralSeconds: number;
     activityPercent: number;
   };
+  attendance: {
+    arrival: string | null;
+    departure: string | null;
+    workdayStart: string;
+    workdayEnd: string;
+    timezone: string;
+    lateMinutes: number;
+    overtimeMinutes: number;
+  };
   topApps: { name: string; seconds: number; productivity: string }[];
   topWebsites: { domain: string; seconds: number; productivity: string }[];
   topWindows: { title: string; seconds: number }[];

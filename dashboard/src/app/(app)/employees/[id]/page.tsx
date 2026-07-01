@@ -38,6 +38,14 @@ const PRODUCTIVITY_VARIANT = {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+/** "45m" / "1h 5m" from a minute count. */
+function fmtMins(m: number): string {
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  return rem ? `${h}h ${rem}m` : `${h}h`;
+}
+
 export default function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [date, setDate] = useState(today());
@@ -111,6 +119,31 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
       {/* Show the install command only until the agent first reports in. */}
       {employee?.enrollmentToken && !employee.lastSeen && (
         <DeployAgent token={employee.enrollmentToken} employeeName={employee.name} />
+      )}
+
+      {/* Attendance vs the configured shift */}
+      {stats?.attendance && (
+        <Card>
+          <CardContent className="flex flex-wrap items-center gap-x-8 gap-y-2 p-5 text-sm">
+            <span className="text-muted-foreground">
+              Shift {stats.attendance.workdayStart}–{stats.attendance.workdayEnd} ({stats.attendance.timezone})
+            </span>
+            <span>
+              <span className="text-muted-foreground">Arrived </span>
+              <span className="font-medium">{stats.attendance.arrival ?? "—"}</span>
+              {stats.attendance.lateMinutes > 0 && (
+                <Badge variant="muted" className="ml-2">{fmtMins(stats.attendance.lateMinutes)} late</Badge>
+              )}
+            </span>
+            <span>
+              <span className="text-muted-foreground">Left </span>
+              <span className="font-medium">{stats.attendance.departure ?? "—"}</span>
+              {stats.attendance.overtimeMinutes > 0 && (
+                <Badge variant="default" className="ml-2">{fmtMins(stats.attendance.overtimeMinutes)} overtime</Badge>
+              )}
+            </span>
+          </CardContent>
+        </Card>
       )}
 
       {/* Charts first */}

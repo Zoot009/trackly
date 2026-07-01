@@ -4,9 +4,10 @@ import { classify } from "../lib/productivity";
 import { extractDomain } from "@flowace/shared";
 
 /** Per-employee productivity breakdown for a specific day, plus a trailing
- * daily series for charts. Everything is derived from raw activity logs and
- * scoped to the configured workday window in the configured timezone, so
- * "worked hours" reflect the real work day. Time values are seconds. */
+ * daily series for charts. Work totals cover the whole (local) day so late
+ * arrivals and overtime are never lost; the configured workday is used only as
+ * an attendance reference (arrival / departure / late / overtime). Times are
+ * seconds unless noted. */
 
 const toHours = (s: number) => Math.round((s / 3600) * 10) / 10;
 
@@ -19,6 +20,15 @@ export interface EmployeeStats {
     unproductiveSeconds: number;
     neutralSeconds: number;
     activityPercent: number;
+  };
+  attendance: {
+    arrival: string | null; // local "HH:mm" of first activity
+    departure: string | null; // local "HH:mm" of last activity
+    workdayStart: string;
+    workdayEnd: string;
+    timezone: string;
+    lateMinutes: number; // arrived after workdayStart
+    overtimeMinutes: number; // worked past workdayEnd
   };
   topApps: { name: string; seconds: number; productivity: Productivity }[];
   topWebsites: { domain: string; seconds: number; productivity: Productivity }[];
@@ -33,13 +43,19 @@ export interface EmployeeStats {
 }
 
 // Local wall-clock of a UTC-stored timestamp, in the configured timezone.
-const LOCAL = `("startedAt" AT TIME ZONE 'UTC' AT TIME ZONE $2)`;
+const LOCAL = (col: string) => `("${col}" AT TIME ZONE 'UTC' AT TIME ZONE $2)`;
 
 function addDaysStr(dateStr: string, delta: number): string {
   const d = new Date(`${dateStr}T00:00:00.000Z`);
   d.setUTCDate(d.getUTCDate() + delta);
   return d.toISOString().slice(0, 10);
 }
+
+const toMin = (hm: string | null): number | null => {
+  if (!hm || !/^\d{1,2}:\d{2}/.test(hm)) return null;
+  const [h, m] = hm.split(":");
+  return Number(h) * 60 + Number(m);
+};
 
 export async function getEmployeeStats(
   employeeId: string,
@@ -48,15 +64,15 @@ export async function getEmployeeStats(
 ): Promise<EmployeeStats> {
   const settings = await prisma.settings.findUnique({ where: { id: "global" } });
   const tz = settings?.timezone || "UTC";
-  const wStart = settings?.workdayStart || "00:00";
-  const wEnd = settings?.workdayEnd || "23:59";
+  const workdayStart = settings?.workdayStart || "09:00";
+  const workdayEnd = settings?.workdayEnd || "18:00";
   const rangeStartDate = addDaysStr(dateStr, -(days - 1));
 
   const ruleRows = await prisma.productivityRule.findMany({ where: { settingsId: "global" } });
   const rules = ruleRows.map((r) => ({ pattern: r.pattern, type: r.type, productivity: r.productivity }));
 
-  const [dayRows, seriesRows] = await Promise.all([
-    // Selected-day breakdown within the workday window.
+  const [dayRows, seriesRows, attendanceRows] = await Promise.all([
+    // Selected-day breakdown across the whole local day.
     prisma.$queryRawUnsafe<
       { app: string; title: string; site: string; state: string; seconds: bigint }[]
     >(
@@ -66,35 +82,36 @@ export async function getEmployeeStats(
               "state"::text AS state,
               SUM("durationSec")::bigint AS seconds
        FROM "activity_logs"
-       WHERE "employeeId" = $1
-         AND ${LOCAL}::date = $3::date
-         AND ${LOCAL}::time >= $4::time
-         AND ${LOCAL}::time <  $5::time
+       WHERE "employeeId" = $1 AND ${LOCAL("startedAt")}::date = $3::date
        GROUP BY 1, 2, 3, 4`,
       employeeId,
       tz,
       dateStr,
-      wStart,
-      wEnd,
     ),
-    // Trailing per-day active/idle series within the workday window.
+    // Trailing per-day active/idle series.
     prisma.$queryRawUnsafe<{ day: string; state: string; seconds: bigint }[]>(
-      `SELECT to_char(${LOCAL}::date, 'YYYY-MM-DD') AS day,
+      `SELECT to_char(${LOCAL("startedAt")}::date, 'YYYY-MM-DD') AS day,
               "state"::text AS state,
               SUM("durationSec")::bigint AS seconds
        FROM "activity_logs"
        WHERE "employeeId" = $1
-         AND ${LOCAL}::date >= $3::date
-         AND ${LOCAL}::date <= $4::date
-         AND ${LOCAL}::time >= $5::time
-         AND ${LOCAL}::time <  $6::time
+         AND ${LOCAL("startedAt")}::date >= $3::date
+         AND ${LOCAL("startedAt")}::date <= $4::date
        GROUP BY 1, 2`,
       employeeId,
       tz,
       rangeStartDate,
       dateStr,
-      wStart,
-      wEnd,
+    ),
+    // Arrival / departure = first / last active moment of the local day.
+    prisma.$queryRawUnsafe<{ arrival: string | null; departure: string | null }[]>(
+      `SELECT to_char(MIN(${LOCAL("startedAt")}), 'HH24:MI') AS arrival,
+              to_char(MAX(${LOCAL("endedAt")}), 'HH24:MI') AS departure
+       FROM "activity_logs"
+       WHERE "employeeId" = $1 AND "state" = 'ACTIVE' AND ${LOCAL("startedAt")}::date = $3::date`,
+      employeeId,
+      tz,
+      dateStr,
     ),
   ]);
 
@@ -143,6 +160,16 @@ export async function getEmployeeStats(
 
   const totalForPercent = workedSeconds + idleSeconds;
 
+  // Attendance vs the configured shift.
+  const arrival = attendanceRows[0]?.arrival ?? null;
+  const departure = attendanceRows[0]?.departure ?? null;
+  const arrMin = toMin(arrival);
+  const depMin = toMin(departure);
+  const startMin = toMin(workdayStart) ?? 0;
+  const endMin = toMin(workdayEnd) ?? 24 * 60;
+  const lateMinutes = arrMin !== null ? Math.max(0, arrMin - startMin) : 0;
+  const overtimeMinutes = depMin !== null ? Math.max(0, depMin - endMin) : 0;
+
   // Trailing daily series (active vs idle hours per local day).
   const series = new Map<string, EmployeeStats["daily"][number]>();
   for (let i = 0; i < days; i++) {
@@ -166,6 +193,7 @@ export async function getEmployeeStats(
       neutralSeconds: prod.NEUTRAL,
       activityPercent: totalForPercent > 0 ? Math.round((workedSeconds / totalForPercent) * 100) : 0,
     },
+    attendance: { arrival, departure, workdayStart, workdayEnd, timezone: tz, lateMinutes, overtimeMinutes },
     topApps,
     topWebsites,
     topWindows,
