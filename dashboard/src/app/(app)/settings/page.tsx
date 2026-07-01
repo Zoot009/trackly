@@ -74,14 +74,25 @@ export default function SettingsPage() {
   const monitoring = watch("monitoringEnabled");
   const timezone = watch("timezone");
   const retentionDays = watch("dataRetentionDays");
-  const retentionSince =
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const retentionFromISO =
     retentionDays && retentionDays > 0
-      ? new Date(Date.now() - retentionDays * 86_400_000).toLocaleDateString(undefined, {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        })
-      : null;
+      ? new Date(Date.now() - retentionDays * 86_400_000).toISOString().slice(0, 10)
+      : "";
+  const retentionSince = retentionFromISO
+    ? new Date(`${retentionFromISO}T00:00:00`).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : null;
+
+  function handleRetentionDate(picked: string) {
+    if (!picked) return;
+    const ms = Date.now() - new Date(`${picked}T00:00:00`).getTime();
+    const days = Math.max(1, Math.round(ms / 86_400_000));
+    setValue("dataRetentionDays", days, { shouldDirty: true, shouldValidate: true });
+  }
   const timezones =
     typeof (Intl as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf === "function"
       ? (Intl as { supportedValuesOf: (k: string) => string[] }).supportedValuesOf("timeZone")
@@ -157,12 +168,22 @@ export default function SettingsPage() {
             <CardTitle>Data retention</CardTitle>
             <CardDescription>How long to keep screenshots and logs.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Field label="Retention period (days)" error={errors.dataRetentionDays?.message}>
-              <Input type="number" {...register("dataRetentionDays", { valueAsNumber: true })} />
-            </Field>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Retention period (days)" error={errors.dataRetentionDays?.message}>
+                <Input type="number" {...register("dataRetentionDays", { valueAsNumber: true })} />
+              </Field>
+              <Field label="Or keep data from">
+                <Input
+                  type="date"
+                  max={todayISO}
+                  value={retentionFromISO}
+                  onChange={(e) => handleRetentionDate(e.target.value)}
+                />
+              </Field>
+            </div>
             {retentionSince && (
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Keeping data from <span className="font-medium text-foreground">{retentionSince}</span> to
                 today. Anything older is deleted automatically each day.
               </p>
