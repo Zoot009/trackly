@@ -55,7 +55,7 @@ services:
   # TURN) so it binds the VPS's public IP directly. Open these ports in the VPS
   # firewall: 3478/tcp, 3478/udp, and 49160-49200/udp.
   coturn:
-    image: coturn/coturn:4.6-alpine
+    image: coturn/coturn:4.6
     restart: unless-stopped
     network_mode: host
     command:
