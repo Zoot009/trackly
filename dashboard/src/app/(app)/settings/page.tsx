@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { settingsSchema, type SettingsInput } from "@flowace/shared";
 import { PageHeader } from "@/components/page-header";
@@ -231,6 +231,32 @@ const PRODUCTIVITY_VARIANT = {
   NEUTRAL: "secondary",
 } as const;
 
+// Sensible starter classification — loadable with one click, fully editable after.
+const DEFAULT_RULES: ProductivityRuleInput[] = [
+  ...[
+    "Visual Studio Code", "Visual Studio", "IntelliJ", "PyCharm", "WebStorm", "Sublime Text",
+    "Notepad++", "Windows PowerShell", "Windows Terminal", "Command Prompt", "Excel", "Word",
+    "PowerPoint", "Outlook", "OneNote", "Microsoft Teams", "Slack", "Zoom", "Notion", "Figma",
+    "Photoshop", "Illustrator", "Postman", "Docker", "GitHub Desktop", "Remote Desktop",
+    "AnyDesk", "TeamViewer",
+  ].map((pattern) => ({ pattern, type: "APP" as const, productivity: "PRODUCTIVE" as const })),
+  ...[
+    "Google Chrome", "Microsoft Edge", "Firefox", "Brave", "Windows Explorer", "Settings",
+    "Task Manager", "Calculator", "Pick an app",
+  ].map((pattern) => ({ pattern, type: "APP" as const, productivity: "NEUTRAL" as const })),
+  ...[
+    "Steam", "Epic Games", "Discord", "Spotify", "VLC", "Netflix", "WhatsApp", "Telegram", "Instagram",
+  ].map((pattern) => ({ pattern, type: "APP" as const, productivity: "UNPRODUCTIVE" as const })),
+  ...[
+    "github", "stackoverflow", "gitlab", "atlassian", "jira", "docs.google", "notion.so",
+    "figma.com", "linear.app", "openai",
+  ].map((pattern) => ({ pattern, type: "WEBSITE" as const, productivity: "PRODUCTIVE" as const })),
+  ...[
+    "youtube", "facebook", "instagram", "twitter", "x.com", "reddit", "tiktok", "twitch",
+    "netflix", "hotstar", "primevideo",
+  ].map((pattern) => ({ pattern, type: "WEBSITE" as const, productivity: "UNPRODUCTIVE" as const })),
+];
+
 function ProductivityRules({
   rules,
 }: {
@@ -241,6 +267,19 @@ function ProductivityRules({
   const [pattern, setPattern] = useState("");
   const [type, setType] = useState<ProductivityRuleInput["type"]>("APP");
   const [productivity, setProductivity] = useState<ProductivityRuleInput["productivity"]>("PRODUCTIVE");
+  const [loadingDefaults, setLoadingDefaults] = useState(false);
+
+  async function loadDefaults() {
+    setLoadingDefaults(true);
+    try {
+      for (const r of DEFAULT_RULES) await create.mutateAsync(r);
+      toast.success(`Added ${DEFAULT_RULES.length} default rules`);
+    } catch {
+      toast.error("Failed to load some defaults");
+    } finally {
+      setLoadingDefaults(false);
+    }
+  }
 
   async function addRule() {
     const value = pattern.trim();
@@ -256,13 +295,19 @@ function ProductivityRules({
 
   return (
     <Card className="mt-6">
-      <CardHeader>
-        <CardTitle>Productivity rules</CardTitle>
-        <CardDescription>
-          Classify apps and websites as productive, neutral or unproductive. Matching is
-          case-insensitive (substring, or use <code>*</code> as a wildcard). Applies to activity going
-          forward.
-        </CardDescription>
+      <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
+        <div className="space-y-1.5">
+          <CardTitle>Productivity rules</CardTitle>
+          <CardDescription>
+            Classify apps and websites as productive, neutral or unproductive. Matching is
+            case-insensitive (substring, or use <code>*</code> as a wildcard). Applies to activity going
+            forward.
+          </CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={loadDefaults} disabled={loadingDefaults}>
+          {loadingDefaults ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          Load defaults
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Add rule */}
