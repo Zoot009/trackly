@@ -65,7 +65,20 @@ try {
   Write-Warning "Could not register scheduled task: $_"
 }
 
-# 4. Launch it now (it also auto-starts at every subsequent logon).
+# 4. Allow the agent through Windows Firewall (silently) so WebRTC live view
+#    works and no "allow access" prompt appears to the employee.
+try {
+  Remove-NetFirewallRule -DisplayName "Trackly Agent*" -ErrorAction SilentlyContinue
+  New-NetFirewallRule -DisplayName "Trackly Agent (In)" -Direction Inbound -Program $AppExe `
+    -Action Allow -Profile Any -ErrorAction SilentlyContinue | Out-Null
+  New-NetFirewallRule -DisplayName "Trackly Agent (Out)" -Direction Outbound -Program $AppExe `
+    -Action Allow -Profile Any -ErrorAction SilentlyContinue | Out-Null
+  Write-Host "Firewall rule added."
+} catch {
+  Write-Warning "Could not add firewall rule: $_"
+}
+
+# 5. Launch it now (it also auto-starts at every subsequent logon).
 if (Test-Path $AppExe) {
   Start-Process -FilePath $AppExe
   Write-Host "Trackly installed and running. It auto-starts at logon and stays running."

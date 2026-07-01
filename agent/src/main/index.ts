@@ -20,6 +20,13 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 }
 
+// The agent is headless. It opens transient windows (enrollment, live-view
+// screen share); closing those must NOT quit the app. Without this handler
+// Electron quits when the last window closes → the agent would go offline.
+app.on("window-all-closed", () => {
+  /* keep running headless */
+});
+
 let tracker: ActivityTracker | null = null;
 let socket: AgentSocket | null = null;
 let sync: SyncWorker | null = null;
