@@ -3,6 +3,8 @@ import { settingsSchema } from "@flowace/shared";
 import { requireAdmin } from "@/lib/auth";
 import { handler, ok } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
+import { buildAgentConfig } from "@/lib/agentConfig";
+import { pushAgentConfig } from "@/lib/realtime";
 
 export const dynamic = "force-dynamic";
 
@@ -28,5 +30,8 @@ export const PATCH = handler(async (req: NextRequest) => {
     data: body,
     include: { rules: true },
   });
+  // Push the new config to all connected agents so changes (private apps,
+  // screenshot cadence, monitoring toggle) apply live without a restart.
+  pushAgentConfig(await buildAgentConfig());
   return ok(settings);
 });

@@ -5,6 +5,7 @@ import {
   type LiveScreenshotPayload,
   type LiveStatusPayload,
   type LiveFeedPayload,
+  type AgentConfigPayload,
 } from "@flowace/shared";
 
 /**
@@ -20,6 +21,13 @@ export function registerIo(server: SocketServer): void {
 }
 
 const DASHBOARD_ROOM = "dashboard";
+const AGENTS_ROOM = "agents";
+
+/** Push fresh config to every connected agent (e.g. after settings change), so
+ * changes like private apps / screenshot interval apply live without a restart. */
+export function pushAgentConfig(cfg: AgentConfigPayload): void {
+  io?.to(AGENTS_ROOM).emit(SOCKET_EVENTS.AGENT_CONFIG, cfg);
+}
 
 export function emitLiveActivity(payload: LiveActivityPayload): void {
   io?.to(DASHBOARD_ROOM).emit(SOCKET_EVENTS.LIVE_ACTIVITY, payload);
@@ -37,4 +45,4 @@ export function emitLiveFeed(payload: LiveFeedPayload): void {
   io?.to(DASHBOARD_ROOM).emit(SOCKET_EVENTS.LIVE_FEED, payload);
 }
 
-export { DASHBOARD_ROOM };
+export { DASHBOARD_ROOM, AGENTS_ROOM };

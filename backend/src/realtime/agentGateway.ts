@@ -6,8 +6,8 @@ import {
   ActivityState,
   type HeartbeatPayload,
   type LiveActivityPayload,
-  type AgentConfigPayload,
 } from "@flowace/shared";
+import { buildAgentConfig } from "../lib/agentConfig";
 import type { AgentTokenPayload } from "../lib/auth";
 import { prisma } from "../lib/prisma";
 import { updateLiveSnapshot } from "../services/activity";
@@ -29,8 +29,10 @@ export function registerAgentGateway(_io: SocketServer, socket: Socket): void {
   const agent = socket.data.agent as AgentTokenPayload;
   const { employeeId, sub: deviceId } = agent;
 
-  // Join a per-employee room so live-view signaling can reach this machine.
+  // Join a per-employee room so live-view signaling can reach this machine,
+  // plus a global room so settings changes can be pushed to all agents live.
   void socket.join(`agent:${employeeId}`);
+  void socket.join("agents");
 
   void sendConfig(socket);
 
@@ -80,13 +82,6 @@ export function registerAgentGateway(_io: SocketServer, socket: Socket): void {
 }
 
 async function sendConfig(socket: Socket): Promise<void> {
-  const settings = await prisma.settings.findUnique({ where: { id: "global" } }).catch(() => null);
-  const config: AgentConfigPayload = {
-    screenshotIntervalSec: settings?.screenshotIntervalSec ?? 300,
-    idleTimeoutSec: settings?.idleTimeoutSec ?? 180,
-    screenshotQuality: settings?.screenshotQuality ?? 70,
-    monitoringEnabled: settings?.monitoringEnabled ?? true,
-    privateApps: settings?.privateApps ?? [],
-  };
-  socket.emit(SOCKET_EVENTS.AGENT_CONFIG, config);
+  const config = await buildAgentConfig().catch(() => null);
+  if (config) socket.emit(SOCKET_EVENTS.AGENT_CONFIG, config);
 }
