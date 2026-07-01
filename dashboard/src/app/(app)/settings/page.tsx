@@ -320,6 +320,21 @@ function Field({
   );
 }
 
+// Common country/city search aliases → IANA zone, so "india" finds Asia/Kolkata.
+const TZ_ALIASES: Record<string, string[]> = {
+  "Asia/Kolkata": ["india", "indian", "ist", "mumbai", "delhi", "bangalore", "hyderabad", "chennai", "calcutta"],
+  "Asia/Dubai": ["uae", "dubai", "emirates"],
+  "Asia/Karachi": ["pakistan", "karachi", "lahore"],
+  "Asia/Dhaka": ["bangladesh", "dhaka"],
+  "America/New_York": ["usa", "us eastern", "est", "edt", "new york"],
+  "America/Los_Angeles": ["usa", "pacific", "pst", "pdt", "california", "los angeles"],
+  "America/Chicago": ["usa", "central", "cst", "chicago"],
+  "Europe/London": ["uk", "britain", "gmt", "bst", "london"],
+  "Europe/Berlin": ["germany", "cet", "berlin"],
+  "Asia/Singapore": ["singapore", "sgt"],
+  "Australia/Sydney": ["australia", "sydney", "aest"],
+};
+
 /** Searchable timezone picker (no extra deps): type to filter, click to select. */
 function TimezoneCombobox({
   value,
@@ -332,8 +347,13 @@ function TimezoneCombobox({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const q = query.toLowerCase().trim();
   const filtered = options
-    .filter((tz) => tz.toLowerCase().includes(query.toLowerCase()))
+    .filter(
+      (tz) =>
+        tz.toLowerCase().includes(q) ||
+        (TZ_ALIASES[tz]?.some((a) => a.includes(q) || q.includes(a)) ?? false),
+    )
     .slice(0, 60);
 
   return (
