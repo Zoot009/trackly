@@ -1,6 +1,7 @@
 import path from "node:path";
 import { app, BrowserWindow, desktopCapturer, ipcMain, session } from "electron";
 import { logger } from "./logger";
+import { isScreenPrivate } from "./privacy";
 
 /**
  * WebRTC live screen share. The agent is headless, so WebRTC (a renderer API)
@@ -12,6 +13,8 @@ type Emit = (event: string, data: unknown) => void;
 
 let win: BrowserWindow | null = null;
 let displayHandlerSet = false;
+let privacyTimer: NodeJS.Timeout | null = null;
+let lastPrivate: boolean | null = null;
 
 function ensureDisplayHandler(): void {
   if (displayHandlerSet) return;
@@ -38,13 +41,26 @@ export function startLive(sessionId: string, iceServers: unknown, emit: Emit): v
 
   win = new BrowserWindow({
     show: false,
-    webPreferences: { nodeIntegration: true, contextIsolation: false },
+    // Keep rendering/timers alive even though the window is hidden — otherwise
+    // Chromium throttles the capture pipeline to a crawl.
+    webPreferences: { nodeIntegration: true, contextIsolation: false, backgroundThrottling: false },
   });
   win.on("closed", () => {
     win = null;
   });
   void win.loadFile(path.join(app.getAppPath(), "static", "live.html"));
-  win.webContents.on("did-finish-load", () => win?.webContents.send("live:init", { iceServers }));
+  win.webContents.on("did-finish-load", () => {
+    win?.webContents.send("live:init", { iceServers });
+    // Push privacy state (private app in focus → viewer sees a black screen).
+    lastPrivate = null;
+    privacyTimer = setInterval(() => {
+      const priv = isScreenPrivate();
+      if (priv !== lastPrivate) {
+        lastPrivate = priv;
+        win?.webContents.send("live:privacy", priv);
+      }
+    }, 1000);
+  });
   logger.info("Live session started");
 }
 
@@ -57,6 +73,10 @@ export function onRemoteIce(candidate: unknown): void {
 }
 
 export function stopLive(): void {
+  if (privacyTimer) {
+    clearInterval(privacyTimer);
+    privacyTimer = null;
+  }
   if (!win) return;
   try {
     win.webContents.send("live:stop");

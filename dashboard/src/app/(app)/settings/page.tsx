@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { settingsSchema, type SettingsInput } from "@flowace/shared";
 import { PageHeader } from "@/components/page-header";
@@ -48,6 +48,7 @@ export default function SettingsPage() {
         timezone: data.timezone,
         dataRetentionDays: data.dataRetentionDays,
         monitoringEnabled: data.monitoringEnabled,
+        privateApps: data.privateApps ?? [],
       });
     }
   }, [data, reset]);
@@ -73,6 +74,18 @@ export default function SettingsPage() {
 
   const monitoring = watch("monitoringEnabled");
   const timezone = watch("timezone");
+  const privateApps = watch("privateApps") ?? [];
+  const [privateInput, setPrivateInput] = useState("");
+
+  function addPrivateApp() {
+    const v = privateInput.trim();
+    if (!v) return;
+    if (!privateApps.includes(v)) setValue("privateApps", [...privateApps, v], { shouldDirty: true });
+    setPrivateInput("");
+  }
+  function removePrivateApp(app: string) {
+    setValue("privateApps", privateApps.filter((a) => a !== app), { shouldDirty: true });
+  }
   const retentionDays = watch("dataRetentionDays");
   const todayISO = new Date().toISOString().slice(0, 10);
   const retentionFromISO =
@@ -208,6 +221,56 @@ export default function SettingsPage() {
                 checked={monitoring}
                 onCheckedChange={(v) => setValue("monitoringEnabled", v, { shouldDirty: true })}
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Private apps</CardTitle>
+            <CardDescription>
+              When one of these is the active window, screenshots are skipped and live view shows a
+              black screen. Case-insensitive, matches part of the app name or window title (so
+              &quot;whatsapp&quot; also catches WhatsApp Web in a browser).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <Input
+                placeholder="e.g. WhatsApp, Signal, KeePass, bank"
+                value={privateInput}
+                onChange={(e) => setPrivateInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addPrivateApp();
+                  }
+                }}
+              />
+              <Button type="button" onClick={addPrivateApp} disabled={!privateInput.trim()}>
+                <Plus className="h-4 w-4" /> Add
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {privateApps.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No private apps — nothing is hidden.
+                </p>
+              ) : (
+                privateApps.map((app) => (
+                  <Badge key={app} variant="secondary" className="gap-1 pr-1">
+                    {app}
+                    <button
+                      type="button"
+                      onClick={() => removePrivateApp(app)}
+                      className="rounded-sm hover:bg-background/50"
+                      aria-label={`Remove ${app}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

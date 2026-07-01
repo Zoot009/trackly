@@ -86,6 +86,7 @@ async function sendConfig(socket: Socket): Promise<void> {
     idleTimeoutSec: settings?.idleTimeoutSec ?? 180,
     screenshotQuality: settings?.screenshotQuality ?? 70,
     monitoringEnabled: settings?.monitoringEnabled ?? true,
+    privateApps: settings?.privateApps ?? [],
   };
   socket.emit(SOCKET_EVENTS.AGENT_CONFIG, config);
 }

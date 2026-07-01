@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import { app, desktopCapturer, screen } from "electron";
 import { config } from "./config";
 import { logger } from "./logger";
+import { isScreenPrivate } from "./privacy";
 
 /**
  * Captures the primary display as PNG and writes it to a temp directory. The
@@ -16,6 +17,11 @@ import { logger } from "./logger";
  */
 export async function captureScreenshot(): Promise<{ filePath: string; capturedAt: string } | null> {
   if (!config.get("monitoringEnabled")) return null;
+  // Privacy: never capture while a private app (e.g. WhatsApp) is in focus.
+  if (isScreenPrivate()) {
+    logger.debug("Screenshot skipped (private app in focus)");
+    return null;
+  }
 
   try {
     const primary = screen.getPrimaryDisplay();

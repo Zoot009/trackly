@@ -19,6 +19,7 @@ interface AgentConfigShape {
   idleTimeoutSec: number;
   screenshotQuality: number;
   monitoringEnabled: boolean;
+  privateApps: string[];
 }
 
 const store = new Store<AgentConfigShape>({
@@ -35,6 +36,7 @@ const store = new Store<AgentConfigShape>({
     idleTimeoutSec: 180,
     screenshotQuality: 70,
     monitoringEnabled: true,
+    privateApps: [],
   },
 });
 
@@ -48,11 +50,13 @@ export const config = {
     idleTimeoutSec: number;
     screenshotQuality: number;
     monitoringEnabled: boolean;
+    privateApps?: string[];
   }): void => {
     store.set("screenshotIntervalSec", cfg.screenshotIntervalSec);
     store.set("idleTimeoutSec", cfg.idleTimeoutSec);
     store.set("screenshotQuality", cfg.screenshotQuality);
     store.set("monitoringEnabled", cfg.monitoringEnabled);
+    store.set("privateApps", cfg.privateApps ?? []);
   },
 };
 

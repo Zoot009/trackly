@@ -62,6 +62,7 @@ export const settingsSchema = z.object({
   timezone: z.string().min(1),
   dataRetentionDays: z.number().int().min(1).max(3650),
   monitoringEnabled: z.boolean(),
+  privateApps: z.array(z.string()).optional(),
 });
 export type SettingsInput = z.infer<typeof settingsSchema>;
 

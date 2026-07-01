@@ -14,6 +14,7 @@ export const GET = handler(async (req: NextRequest) => {
     idleTimeoutSec: settings?.idleTimeoutSec ?? 180,
     screenshotQuality: settings?.screenshotQuality ?? 70,
     monitoringEnabled: settings?.monitoringEnabled ?? true,
+    privateApps: settings?.privateApps ?? [],
   };
   return ok(config);
 });

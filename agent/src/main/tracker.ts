@@ -4,33 +4,7 @@ import { ActivityState, extractDomain } from "@flowace/shared";
 import type { CachedSample } from "./db";
 import { config } from "./config";
 import { logger } from "./logger";
-
-/**
- * Foreground-window detection via @paymoapp/active-window — a prebuilt N-API
- * addon (no ffi-napi, ABI-stable across Electron versions). Loaded lazily and
- * tolerant of failure: if it can't init, samples just omit the app/window name.
- */
-interface WindowInfo {
-  title: string;
-  application: string;
-}
-let activeWin: { getActiveWindow(): WindowInfo } | null = null;
-let activeWinTried = false;
-function getActiveWin(): { getActiveWindow(): WindowInfo } | null {
-  if (activeWinTried) return activeWin;
-  activeWinTried = true;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const mod = require("@paymoapp/active-window");
-    const AW = mod.default ?? mod.ActiveWindow ?? mod;
-    AW.initialize();
-    activeWin = AW;
-  } catch (err) {
-    logger.warn("active-window unavailable; app/window name will be omitted", err);
-    activeWin = null;
-  }
-  return activeWin;
-}
+import { getActiveWindowInfo } from "./activeWindow";
 
 /**
  * Samples the foreground window + input activity on a fixed cadence and emits
@@ -90,7 +64,7 @@ export class ActivityTracker extends EventEmitter {
     let website: string | null = null;
 
     try {
-      const win = getActiveWin()?.getActiveWindow();
+      const win = getActiveWindowInfo();
       if (win) {
         appName = win.application || null;
         windowTitle = win.title || null;

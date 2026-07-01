@@ -69,4 +69,7 @@ export interface AgentConfigPayload {
   idleTimeoutSec: number;
   screenshotQuality: number; // 1-100 (WebP quality)
   monitoringEnabled: boolean;
+  // App-name patterns to treat as private: screenshots skipped + live view
+  // blacked out while one of these is the foreground window.
+  privateApps: string[];
 }

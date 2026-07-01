@@ -103,6 +103,7 @@ export interface AppSettings {
   timezone: string; // IANA, e.g. "Asia/Kolkata"
   dataRetentionDays: number;
   monitoringEnabled: boolean;
+  privateApps: string[];
   productivityRules: ProductivityRule[];
 }
 
