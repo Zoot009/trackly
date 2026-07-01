@@ -1,17 +1,15 @@
-# Trackly agent — Windows installer (per-machine / admin).
+# Trackly agent — Windows installer (per-user).
 #
-# Per-machine install means a standard (non-admin) employee account cannot
-# uninstall it. It therefore requires admin rights — run this in an elevated
-# PowerShell, or let it self-elevate (one UAC prompt), or push it via MDM as
-# SYSTEM (no prompt).
+# Per-user install (no admin needed) so the agent can silently auto-update
+# itself forever. It installs under the user's profile and auto-starts at login
+# (the app registers itself as a login item). Runs headless in the background.
 #
-# Usage:
+# Usage (normal PowerShell — no admin required):
 #   $env:TRACKLY_TOKEN="<enrollment-token>"; $env:TRACKLY_SERVER="https://api.yourdomain.com"; `
 #     irm https://YOUR_VPS_DOMAIN/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 
-# --- Configuration (edit DownloadBase to your VPS/CDN) ------------------------
 $DownloadBase = "https://tracker.zootcloud.com"
 $Server = if ($env:TRACKLY_SERVER) { $env:TRACKLY_SERVER } else { $DownloadBase }
 $Token  = $env:TRACKLY_TOKEN
@@ -21,67 +19,32 @@ if (-not $Token) {
   return
 }
 
-# Self-elevate if not running as administrator (preserves the token + server).
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()
-  ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $isAdmin) {
-  Write-Host "Requesting administrator rights..."
-  $inner = "`$env:TRACKLY_TOKEN='$Token'; `$env:TRACKLY_SERVER='$Server'; irm $DownloadBase/install.ps1 | iex"
-  $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($inner))
-  Start-Process powershell -Verb RunAs -ArgumentList "-NoProfile -EncodedCommand $encoded"
-  return
-}
+Write-Host "Installing Trackly agent..."
 
-Write-Host "Installing Trackly agent (per-machine)..."
-
-# 1. Machine-wide provisioning file (readable by every logged-in user's agent).
-$ProvisionDir = Join-Path $env:ProgramData "Trackly"
+# 1. User-level provisioning file (no admin needed). The agent reads this to
+#    enroll silently.
+$ProvisionDir = Join-Path $env:USERPROFILE ".trackly"
 New-Item -ItemType Directory -Force -Path $ProvisionDir | Out-Null
 @{ serverUrl = $Server; enrollmentToken = $Token } |
   ConvertTo-Json | Set-Content -Path (Join-Path $ProvisionDir "provision.json") -Encoding UTF8
 
-# 2. Download + silent per-machine install.
+# 2. Download + silent per-user install (installs under %LOCALAPPDATA%\Programs).
 $Installer = Join-Path $env:TEMP "Trackly-Setup.exe"
 Invoke-WebRequest -Uri "$DownloadBase/downloads/Trackly-Setup.exe" -OutFile $Installer
 Start-Process -FilePath $Installer -ArgumentList "/S" -Wait
 
-$AppExe = Join-Path $env:ProgramFiles "Trackly\Trackly.exe"
-
-# 3. Register a machine-wide Scheduled Task so the agent auto-starts for EVERY
-#    user at logon, restarts if it ever stops, and has no run-time limit. Being
-#    admin-created, a standard employee account cannot delete or disable it.
+# 3. Best-effort firewall rule for WebRTC live view. Silently ignored if the
+#    user isn't allowed to add it (no admin) — outbound is usually allowed anyway.
+$AppExe = Join-Path $env:LOCALAPPDATA "Programs\Trackly\Trackly.exe"
 try {
-  $action    = New-ScheduledTaskAction -Execute $AppExe
-  $trigger   = New-ScheduledTaskTrigger -AtLogOn
-  # S-1-5-32-545 = BUILTIN\Users (locale-independent) -> runs in each user's session.
-  $principal = New-ScheduledTaskPrincipal -GroupId "S-1-5-32-545" -RunLevel Limited
-  $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
-                 -StartWhenAvailable -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
-                 -ExecutionTimeLimit ([TimeSpan]::Zero)
-  Register-ScheduledTask -TaskName "TracklyAgent" -Action $action -Trigger $trigger `
-    -Principal $principal -Settings $settings -Force | Out-Null
-  Write-Host "Registered auto-start task (runs at every logon, restarts on failure)."
-} catch {
-  Write-Warning "Could not register scheduled task: $_"
-}
-
-# 4. Allow the agent through Windows Firewall (silently) so WebRTC live view
-#    works and no "allow access" prompt appears to the employee.
-try {
-  Remove-NetFirewallRule -DisplayName "Trackly Agent*" -ErrorAction SilentlyContinue
   New-NetFirewallRule -DisplayName "Trackly Agent (In)" -Direction Inbound -Program $AppExe `
     -Action Allow -Profile Any -ErrorAction SilentlyContinue | Out-Null
-  New-NetFirewallRule -DisplayName "Trackly Agent (Out)" -Direction Outbound -Program $AppExe `
-    -Action Allow -Profile Any -ErrorAction SilentlyContinue | Out-Null
-  Write-Host "Firewall rule added."
-} catch {
-  Write-Warning "Could not add firewall rule: $_"
-}
+} catch { }
 
-# 5. Launch it now (it also auto-starts at every subsequent logon).
+# 4. Launch it now. The app registers itself to auto-start at every login.
 if (Test-Path $AppExe) {
   Start-Process -FilePath $AppExe
-  Write-Host "Trackly installed and running. It auto-starts at logon and stays running."
+  Write-Host "Trackly installed and running. It auto-starts at login and updates itself."
 } else {
   Write-Warning "Installed, but could not locate Trackly.exe. It will start at next login."
 }
