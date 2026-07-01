@@ -131,17 +131,11 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Field label="Timezone">
-              <Select
-                value={timezone}
-                onValueChange={(v) => setValue("timezone", v, { shouldDirty: true })}
-              >
-                <SelectTrigger><SelectValue placeholder="Select timezone" /></SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {timezones.map((tz) => (
-                    <SelectItem key={tz} value={tz}>{tz}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <TimezoneCombobox
+                value={timezone ?? ""}
+                options={timezones}
+                onChange={(v) => setValue("timezone", v, { shouldDirty: true })}
+              />
             </Field>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Workday start" error={errors.workdayStart?.message}>
@@ -322,6 +316,61 @@ function Field({
       <Label>{label}</Label>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/** Searchable timezone picker (no extra deps): type to filter, click to select. */
+function TimezoneCombobox({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: string[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const filtered = options
+    .filter((tz) => tz.toLowerCase().includes(query.toLowerCase()))
+    .slice(0, 60);
+
+  return (
+    <div className="relative">
+      <Input
+        value={open ? query : value}
+        placeholder="Search timezone… (e.g. Kolkata)"
+        onFocus={() => {
+          setOpen(true);
+          setQuery("");
+        }}
+        onChange={(e) => setQuery(e.target.value)}
+        onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+      />
+      {open && (
+        <div className="absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-muted-foreground">No match</div>
+          ) : (
+            filtered.map((tz) => (
+              <button
+                key={tz}
+                type="button"
+                className="block w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onChange(tz);
+                  setQuery("");
+                  setOpen(false);
+                }}
+              >
+                {tz}
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
