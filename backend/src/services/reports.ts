@@ -1,10 +1,11 @@
 import { Productivity } from "@prisma/client";
 import { ReportType, type ReportSummary, type Productivity as SharedProductivity } from "@flowace/shared";
+import { prisma } from "../lib/prisma";
+import { getRules, classifyApp, classifyDomain } from "../lib/rules";
 
 // Prisma's Productivity enum is value-identical to the shared one but nominally
 // distinct; this normalises it for the shared ReportSummary contract.
 const toShared = (p: Productivity) => p as unknown as SharedProductivity;
-import { prisma } from "../lib/prisma";
 
 export function resolveRange(type: ReportType, ref = new Date()): { start: Date; end: Date } {
   const end = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate() + 1));
@@ -23,7 +24,7 @@ export async function generateReport(
   const { start, end } = resolveRange(type, ref);
   const empWhere = employeeId ? { employeeId } : {};
 
-  const [worked, idle, appUsage, webUsage] = await Promise.all([
+  const [worked, idle, appUsage, webUsage, rules] = await Promise.all([
     prisma.activityLog.aggregate({
       where: { ...empWhere, state: "ACTIVE", startedAt: { gte: start, lt: end } },
       _sum: { durationSec: true },
@@ -33,32 +34,42 @@ export async function generateReport(
       _sum: { durationSec: true },
     }),
     prisma.applicationUsage.groupBy({
-      by: ["appName", "productivity"],
+      by: ["appName"],
       where: { ...empWhere, date: { gte: start, lt: end } },
       _sum: { totalSeconds: true },
     }),
     prisma.websiteUsage.groupBy({
-      by: ["domain", "productivity"],
+      by: ["domain"],
       where: { ...empWhere, date: { gte: start, lt: end } },
       _sum: { totalSeconds: true },
     }),
+    getRules(),
   ]);
 
   let productiveSeconds = 0;
   let unproductiveSeconds = 0;
-  for (const row of [...appUsage, ...webUsage]) {
-    const s = row._sum.totalSeconds ?? 0;
-    if (row.productivity === Productivity.PRODUCTIVE) productiveSeconds += s;
-    else if (row.productivity === Productivity.UNPRODUCTIVE) unproductiveSeconds += s;
-  }
+  const tally = (p: Productivity, s: number) => {
+    if (p === Productivity.PRODUCTIVE) productiveSeconds += s;
+    else if (p === Productivity.UNPRODUCTIVE) unproductiveSeconds += s;
+  };
 
   const topApps = appUsage
-    .map((a) => ({ name: a.appName, seconds: a._sum.totalSeconds ?? 0, productivity: toShared(a.productivity) }))
+    .map((a) => {
+      const seconds = a._sum.totalSeconds ?? 0;
+      const productivity = classifyApp(a.appName, rules);
+      tally(productivity, seconds);
+      return { name: a.appName, seconds, productivity: toShared(productivity) };
+    })
     .sort((a, b) => b.seconds - a.seconds)
     .slice(0, 10);
 
   const topWebsites = webUsage
-    .map((w) => ({ domain: w.domain, seconds: w._sum.totalSeconds ?? 0, productivity: toShared(w.productivity) }))
+    .map((w) => {
+      const seconds = w._sum.totalSeconds ?? 0;
+      const productivity = classifyDomain(w.domain, rules);
+      tally(productivity, seconds);
+      return { domain: w.domain, seconds, productivity: toShared(productivity) };
+    })
     .sort((a, b) => b.seconds - a.seconds)
     .slice(0, 10);
 

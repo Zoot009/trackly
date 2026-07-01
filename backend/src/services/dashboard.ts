@@ -1,6 +1,7 @@
 import { EmployeeStatus, Productivity } from "@prisma/client";
 import type { DashboardStats } from "@flowace/shared";
 import { prisma } from "../lib/prisma";
+import { getRules, classifyApp, classifyDomain } from "../lib/rules";
 
 function startOfUtcDay(d = new Date()): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -9,15 +10,15 @@ function startOfUtcDay(d = new Date()): Date {
 export async function getDashboardStats(): Promise<DashboardStats> {
   const today = startOfUtcDay();
 
-  const [counts, appUsage, webUsage, workedAgg] = await Promise.all([
+  const [counts, appUsage, webUsage, workedAgg, rules] = await Promise.all([
     prisma.employee.groupBy({ by: ["status"], _count: { _all: true }, where: { active: true } }),
     prisma.applicationUsage.groupBy({
-      by: ["productivity"],
+      by: ["appName"],
       where: { date: today },
       _sum: { totalSeconds: true },
     }),
     prisma.websiteUsage.groupBy({
-      by: ["productivity"],
+      by: ["domain"],
       where: { date: today },
       _sum: { totalSeconds: true },
     }),
@@ -25,6 +26,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       where: { startedAt: { gte: today }, state: "ACTIVE" },
       _sum: { durationSec: true },
     }),
+    getRules(),
   ]);
 
   const byStatus = (s: EmployeeStatus) =>
@@ -36,9 +38,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const total = online + idle + offline;
 
   const prodSeconds = { PRODUCTIVE: 0, UNPRODUCTIVE: 0, NEUTRAL: 0 };
-  for (const row of [...appUsage, ...webUsage]) {
-    prodSeconds[row.productivity] += row._sum.totalSeconds ?? 0;
-  }
+  for (const row of appUsage) prodSeconds[classifyApp(row.appName, rules)] += row._sum.totalSeconds ?? 0;
+  for (const row of webUsage) prodSeconds[classifyDomain(row.domain, rules)] += row._sum.totalSeconds ?? 0;
   const prodTotal =
     prodSeconds.PRODUCTIVE + prodSeconds.UNPRODUCTIVE + prodSeconds.NEUTRAL || 1;
 

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { handler, ok } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
+import { getRules, classifyApp, classifyDomain } from "@/lib/rules";
 
 export const dynamic = "force-dynamic";
 
@@ -17,14 +18,14 @@ export const GET = handler(async (req: NextRequest) => {
   const now = new Date();
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - days + 1));
 
-  const [appUsage, webUsage, dailyActivity] = await Promise.all([
+  const [appUsage, webUsage, dailyActivity, rules] = await Promise.all([
     prisma.applicationUsage.groupBy({
-      by: ["appName", "productivity"],
+      by: ["appName"],
       where: { ...empWhere, date: { gte: start } },
       _sum: { totalSeconds: true },
     }),
     prisma.websiteUsage.groupBy({
-      by: ["domain", "productivity"],
+      by: ["domain"],
       where: { ...empWhere, date: { gte: start } },
       _sum: { totalSeconds: true },
     }),
@@ -38,15 +39,16 @@ export const GET = handler(async (req: NextRequest) => {
       start,
       ...(employeeId && employeeId !== "all" ? [employeeId] : []),
     ),
+    getRules(),
   ]);
 
   const topApps = appUsage
-    .map((a) => ({ name: a.appName, seconds: a._sum.totalSeconds ?? 0, productivity: a.productivity }))
+    .map((a) => ({ name: a.appName, seconds: a._sum.totalSeconds ?? 0, productivity: classifyApp(a.appName, rules) }))
     .sort((a, b) => b.seconds - a.seconds)
     .slice(0, 8);
 
   const topWebsites = webUsage
-    .map((w) => ({ domain: w.domain, seconds: w._sum.totalSeconds ?? 0, productivity: w.productivity }))
+    .map((w) => ({ domain: w.domain, seconds: w._sum.totalSeconds ?? 0, productivity: classifyDomain(w.domain, rules) }))
     .sort((a, b) => b.seconds - a.seconds)
     .slice(0, 8);
 
@@ -60,7 +62,8 @@ export const GET = handler(async (req: NextRequest) => {
   }
 
   const productivity = { PRODUCTIVE: 0, UNPRODUCTIVE: 0, NEUTRAL: 0 };
-  for (const a of [...appUsage, ...webUsage]) productivity[a.productivity] += a._sum.totalSeconds ?? 0;
+  for (const a of appUsage) productivity[classifyApp(a.appName, rules)] += a._sum.totalSeconds ?? 0;
+  for (const w of webUsage) productivity[classifyDomain(w.domain, rules)] += w._sum.totalSeconds ?? 0;
 
   return ok({
     topApps,

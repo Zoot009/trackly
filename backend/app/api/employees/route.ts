@@ -3,6 +3,7 @@ import { createEmployeeSchema } from "@flowace/shared";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { created, handler, ok } from "@/lib/http";
+import { getRules, classifyApp, classifyDomain } from "@/lib/rules";
 
 export const dynamic = "force-dynamic";
 
@@ -33,28 +34,34 @@ export const GET = handler(async (req: NextRequest) => {
 
   // Per-employee worked/idle + productive/unproductive seconds for today.
   const today = startOfUtcDay();
-  const [agg, appUsage, webUsage] = await Promise.all([
+  const [agg, appUsage, webUsage, rules] = await Promise.all([
     prisma.activityLog.groupBy({
       by: ["employeeId", "state"],
       where: { startedAt: { gte: today } },
       _sum: { durationSec: true },
     }),
     prisma.applicationUsage.groupBy({
-      by: ["employeeId", "productivity"],
+      by: ["employeeId", "appName"],
       where: { date: today },
       _sum: { totalSeconds: true },
     }),
     prisma.websiteUsage.groupBy({
-      by: ["employeeId", "productivity"],
+      by: ["employeeId", "domain"],
       where: { date: today },
       _sum: { totalSeconds: true },
     }),
+    getRules(),
   ]);
 
+  // Classify each usage row live with the current rules.
+  const classified = [
+    ...appUsage.map((u) => ({ employeeId: u.employeeId, productivity: classifyApp(u.appName, rules), seconds: u._sum.totalSeconds ?? 0 })),
+    ...webUsage.map((u) => ({ employeeId: u.employeeId, productivity: classifyDomain(u.domain, rules), seconds: u._sum.totalSeconds ?? 0 })),
+  ];
   const usageFor = (employeeId: string, productivity: "PRODUCTIVE" | "UNPRODUCTIVE") =>
-    [...appUsage, ...webUsage]
+    classified
       .filter((u) => u.employeeId === employeeId && u.productivity === productivity)
-      .reduce((sum, u) => sum + (u._sum.totalSeconds ?? 0), 0);
+      .reduce((sum, u) => sum + u.seconds, 0);
 
   const data = employees.map((e) => {
     const worked = agg.find((a) => a.employeeId === e.id && a.state === "ACTIVE")?._sum.durationSec ?? 0;
