@@ -19,7 +19,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -50,11 +49,10 @@ function fmtMins(m: number): string {
 export default function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [date, setDate] = useState(today());
-  const [days, setDays] = useState("7");
   const [liveOpen, setLiveOpen] = useState(false);
 
   const { data: employee } = useEmployee(id);
-  const { data: stats, isLoading } = useEmployeeStats(id, date, Number(days));
+  const { data: stats, isLoading } = useEmployeeStats(id, date, 7);
   const { data: shots } = useScreenshots({ employeeId: id, date });
 
   const summary = stats?.summary;
@@ -111,21 +109,9 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
               </div>
             </div>
           </div>
-          <div className="flex items-end gap-2">
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Date</label>
-              <Input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} className="w-40" />
-            </div>
-            <Select value={days} onValueChange={setDays}>
-              <SelectTrigger className="w-28">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">7 days</SelectItem>
-                <SelectItem value="14">14 days</SelectItem>
-                <SelectItem value="30">30 days</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Date</label>
+            <Input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} className="w-40" />
           </div>
         </CardContent>
       </Card>
