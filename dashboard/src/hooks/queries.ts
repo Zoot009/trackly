@@ -42,8 +42,9 @@ export interface EmployeeStatsResponse {
   attendance: {
     arrival: string | null;
     departure: string | null;
-    workdayStart: string;
-    workdayEnd: string;
+    shiftStart: string;
+    shiftEnd: string;
+    overnight: boolean;
     timezone: string;
     lateMinutes: number;
     overtimeMinutes: number;
@@ -100,6 +101,19 @@ export function useDeleteEmployee() {
   return useMutation({
     mutationFn: (id: string) => apiClient.delete(`/api/employees/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["employees"] }),
+  });
+}
+
+export function useUpdateEmployee(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { shiftStart?: string; shiftEnd?: string; name?: string; department?: string | null }) =>
+      apiClient.patch<Employee>(`/api/employees/${id}`, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["employee", id] });
+      qc.invalidateQueries({ queryKey: ["employee-stats", id] });
+      qc.invalidateQueries({ queryKey: ["employees"] });
+    },
   });
 }
 

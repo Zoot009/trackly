@@ -15,6 +15,8 @@ export const createEmployeeSchema = z.object({
   email: z.string().email(),
   department: z.string().optional().nullable(),
   jobTitle: z.string().optional().nullable(),
+  shiftStart: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  shiftEnd: z.string().regex(/^\d{2}:\d{2}$/).optional(),
 });
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
 

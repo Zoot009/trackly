@@ -1,9 +1,10 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { ArrowLeft, Radio } from "lucide-react";
+import { toast } from "sonner";
 import { formatDuration } from "@flowace/shared";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
@@ -19,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -27,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useEmployee, useEmployeeStats, useScreenshots } from "@/hooks/queries";
+import { useEmployee, useEmployeeStats, useScreenshots, useUpdateEmployee } from "@/hooks/queries";
 import { initials } from "@/lib/utils";
 
 const PRODUCTIVITY_VARIANT = {
@@ -44,6 +46,67 @@ function fmtMins(m: number): string {
   const h = Math.floor(m / 60);
   const rem = m % 60;
   return rem ? `${h}h ${rem}m` : `${h}h`;
+}
+
+/** Inline editor for an employee's shift (start/end). End ≤ start = overnight. */
+function ShiftEditor({ id, start, end }: { id: string; start: string; end: string }) {
+  const [open, setOpen] = useState(false);
+  const [s, setS] = useState(start);
+  const [e, setE] = useState(end);
+  const update = useUpdateEmployee(id);
+  useEffect(() => {
+    setS(start);
+    setE(end);
+  }, [start, end]);
+
+  async function save() {
+    try {
+      await update.mutateAsync({ shiftStart: s, shiftEnd: e });
+      toast.success("Shift updated");
+      setOpen(false);
+    } catch {
+      toast.error("Failed to update shift");
+    }
+  }
+
+  return (
+    <>
+      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setOpen(true)}>
+        Edit
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Shift hours</DialogTitle>
+            <DialogDescription>
+              Set this employee&apos;s shift (in {""}
+              {/* timezone shown in the strip */}
+              your company timezone). If the end time is earlier than the start, it&apos;s treated as an
+              overnight (night) shift — e.g. 20:00 → 06:00.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-end gap-3">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Start</label>
+              <Input type="time" value={s} onChange={(ev) => setS(ev.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">End</label>
+              <Input type="time" value={e} onChange={(ev) => setE(ev.target.value)} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={save} disabled={update.isPending}>
+              Save
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
 
 export default function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -121,12 +184,14 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         <DeployAgent token={employee.enrollmentToken} employeeName={employee.name} />
       )}
 
-      {/* Attendance vs the configured shift */}
+      {/* Attendance vs the employee's shift */}
       {stats?.attendance && (
         <Card>
           <CardContent className="flex flex-wrap items-center gap-x-8 gap-y-2 p-5 text-sm">
-            <span className="text-muted-foreground">
-              Shift {stats.attendance.workdayStart}–{stats.attendance.workdayEnd} ({stats.attendance.timezone})
+            <span className="flex items-center gap-2 text-muted-foreground">
+              Shift {stats.attendance.shiftStart}–{stats.attendance.shiftEnd} ({stats.attendance.timezone})
+              {stats.attendance.overnight && <Badge variant="secondary">Night</Badge>}
+              {employee && <ShiftEditor id={id} start={stats.attendance.shiftStart} end={stats.attendance.shiftEnd} />}
             </span>
             <span>
               <span className="text-muted-foreground">Arrived </span>

@@ -59,6 +59,11 @@ model Employee {
   status     EmployeeStatus @default(OFFLINE)
   lastSeen   DateTime?
 
+  // Per-employee shift (local time, HH:mm). If shiftEnd <= shiftStart the shift
+  // is treated as overnight (night shift crossing midnight).
+  shiftStart String @default("09:00")
+  shiftEnd   String @default("18:00")
+
   // Denormalised live snapshot for fast dashboard reads.
   currentApp        String?
   currentWebsite    String?

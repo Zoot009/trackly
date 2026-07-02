@@ -26,6 +26,8 @@ export interface Employee {
   status: EmployeeStatus;
   lastSeen: string | null;
   createdAt: string;
+  shiftStart: string; // "HH:mm" local
+  shiftEnd: string; // "HH:mm" local (<= shiftStart = overnight)
 
   // Live snapshot (denormalised for fast dashboard reads)
   currentApp: string | null;
