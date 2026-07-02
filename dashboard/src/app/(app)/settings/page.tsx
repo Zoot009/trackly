@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { settingsSchema, type SettingsInput } from "@flowace/shared";
+import { settingsSchema, formatDuration, type SettingsInput } from "@flowace/shared";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
   useUpdateSettings,
   useCreateRule,
   useDeleteRule,
+  useDetectedApps,
   type ProductivityRuleInput,
 } from "@/hooks/queries";
 
@@ -277,6 +278,8 @@ export default function SettingsPage() {
       </form>
 
       <ProductivityRules rules={data?.productivityRules ?? []} />
+
+      <DetectedApps />
 
       <UnsavedBar
         show={isDirty}
@@ -538,5 +541,93 @@ function TimezoneCombobox({
         </div>
       )}
     </div>
+  );
+}
+
+/** Shows every app/site seen (last 30 days) grouped by current classification,
+ * with a per-item dropdown to reclassify (creates a rule, applies everywhere). */
+function DetectedApps() {
+  const { data, isLoading } = useDetectedApps();
+  const create = useCreateRule();
+
+  const items = [
+    ...(data?.apps ?? []).map((a) => ({ ...a, kind: "APP" as const })),
+    ...(data?.websites ?? []).map((w) => ({ ...w, kind: "WEBSITE" as const })),
+  ];
+  const columns = [
+    { key: "PRODUCTIVE", label: "Productive" },
+    { key: "NEUTRAL", label: "Neutral" },
+    { key: "UNPRODUCTIVE", label: "Unproductive" },
+  ] as const;
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>Detected apps &amp; sites</CardTitle>
+        <CardDescription>
+          Everything your team has used in the last 30 days and how it&apos;s currently classified.
+          Change any item with the dropdown — it applies everywhere instantly.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-40" />
+        ) : items.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">No activity recorded yet.</p>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-3">
+            {columns.map((col) => {
+              const list = items.filter((i) => i.productivity === col.key);
+              return (
+                <div key={col.key} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">{col.label}</p>
+                    <span className="text-xs text-muted-foreground">{list.length}</span>
+                  </div>
+                  <div className="min-h-[3rem] space-y-1 rounded-lg border p-2">
+                    {list.length === 0 ? (
+                      <p className="px-1 py-2 text-xs text-muted-foreground">None</p>
+                    ) : (
+                      list.map((i) => (
+                        <div
+                          key={i.kind + i.name}
+                          className="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-accent/50"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm">{i.name}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {i.kind === "WEBSITE" ? "site" : "app"} · {formatDuration(i.seconds)}
+                            </p>
+                          </div>
+                          <Select
+                            value={i.productivity}
+                            onValueChange={(v) =>
+                              create.mutate({
+                                pattern: i.name,
+                                type: i.kind,
+                                productivity: v as ProductivityRuleInput["productivity"],
+                              })
+                            }
+                          >
+                            <SelectTrigger className="h-7 w-[7.5rem] text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="PRODUCTIVE">Productive</SelectItem>
+                              <SelectItem value="NEUTRAL">Neutral</SelectItem>
+                              <SelectItem value="UNPRODUCTIVE">Unproductive</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

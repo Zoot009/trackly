@@ -187,11 +187,27 @@ export interface ProductivityRuleInput {
   productivity: "PRODUCTIVE" | "NEUTRAL" | "UNPRODUCTIVE";
 }
 
+export interface DetectedItem {
+  name: string;
+  seconds: number;
+  productivity: "PRODUCTIVE" | "NEUTRAL" | "UNPRODUCTIVE";
+}
+
+export function useDetectedApps() {
+  return useQuery({
+    queryKey: ["detected-apps"],
+    queryFn: () => apiClient.get<{ apps: DetectedItem[]; websites: DetectedItem[] }>("/api/settings/detected"),
+  });
+}
+
 export function useCreateRule() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: ProductivityRuleInput) => apiClient.post("/api/settings/rules", input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["settings"] });
+      qc.invalidateQueries({ queryKey: ["detected-apps"] });
+    },
   });
 }
 
@@ -199,6 +215,9 @@ export function useDeleteRule() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => apiClient.delete(`/api/settings/rules/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["settings"] });
+      qc.invalidateQueries({ queryKey: ["detected-apps"] });
+    },
   });
 }
