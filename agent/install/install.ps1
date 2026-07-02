@@ -45,10 +45,28 @@ if ($AppExe) {
   } catch { }
 }
 
-# 4. Launch it now. The app registers itself to auto-start at every login.
+# 4. Register a per-user Scheduled Task (no admin needed) so the agent starts at
+#    logon, restarts if it stops, and runs independently of any terminal. Then
+#    start it. Falls back to a plain launch if the task can't be created.
+$started = $false
 if ($AppExe -and (Test-Path $AppExe)) {
-  Start-Process -FilePath $AppExe
-  Write-Host "Trackly installed and running. It auto-starts at login and updates itself."
+  try {
+    $action    = New-ScheduledTaskAction -Execute $AppExe
+    $trigger   = New-ScheduledTaskTrigger -AtLogOn
+    $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" `
+                   -LogonType Interactive -RunLevel Limited
+    $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+                   -StartWhenAvailable -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
+                   -ExecutionTimeLimit ([TimeSpan]::Zero)
+    Register-ScheduledTask -TaskName "TracklyAgent" -Action $action -Trigger $trigger `
+      -Principal $principal -Settings $settings -Force | Out-Null
+    Start-ScheduledTask -TaskName "TracklyAgent"
+    $started = $true
+    Write-Host "Trackly installed. Auto-starts at logon, restarts on failure, runs in the background."
+  } catch {
+    Write-Warning "Could not register task ($_). Falling back to a direct launch."
+  }
+  if (-not $started) { Start-Process -FilePath $AppExe }
 } else {
   Write-Warning "Installed, but could not locate Trackly.exe. It will start at next login."
 }
