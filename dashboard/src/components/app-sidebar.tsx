@@ -5,8 +5,6 @@ import Link from "next/link";
 import {
   Activity,
   BarChart3,
-  Building2,
-  Headphones,
   LayoutDashboard,
   LifeBuoy,
   Send,
@@ -15,7 +13,6 @@ import {
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
-import { NavProjects } from "@/components/nav-projects";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
 import {
@@ -74,11 +71,6 @@ const data = {
     { title: "Support", url: "https://docs.flowace.dev", icon: LifeBuoy, external: true },
     { title: "Send Feedback", url: "mailto:support@flowace.dev", icon: Send, external: true },
   ],
-  departments: [
-    { name: "Engineering", url: "/employees?department=Engineering", icon: Building2 },
-    { name: "Sales", url: "/employees?department=Sales", icon: Building2 },
-    { name: "Support", url: "/employees?department=Support", icon: Headphones },
-  ],
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -103,7 +95,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={data.departments} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
