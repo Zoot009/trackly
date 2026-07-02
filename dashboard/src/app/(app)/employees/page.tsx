@@ -111,7 +111,7 @@ export default function EmployeesPage() {
               <TableHead className="text-right">Productive</TableHead>
               <TableHead className="text-right">Unproductive</TableHead>
               <TableHead className="text-right">Idle</TableHead>
-              <TableHead>Last Seen</TableHead>
+              <TableHead className="whitespace-nowrap">Last Seen</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -171,8 +171,8 @@ export default function EmployeesPage() {
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {formatDuration(emp.todayIdleSeconds)}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {emp.lastSeen ? format(new Date(emp.lastSeen), "MMM d, HH:mm") : "—"}
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                      {emp.lastSeen ? format(new Date(emp.lastSeen), "d MMM yyyy, HH:mm") : "—"}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
