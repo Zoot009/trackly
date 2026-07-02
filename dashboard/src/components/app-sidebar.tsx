@@ -6,14 +6,11 @@ import {
   Activity,
   BarChart3,
   LayoutDashboard,
-  LifeBuoy,
-  Send,
   Settings2,
   Users,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
-import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
 import {
   Sidebar,
@@ -67,10 +64,6 @@ const data = {
       ],
     },
   ],
-  navSecondary: [
-    { title: "Support", url: "https://docs.flowace.dev", icon: LifeBuoy, external: true },
-    { title: "Send Feedback", url: "mailto:support@flowace.dev", icon: Send, external: true },
-  ],
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -95,7 +88,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
