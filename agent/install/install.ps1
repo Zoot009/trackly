@@ -45,28 +45,25 @@ if ($AppExe) {
   } catch { }
 }
 
-# 4. Register a per-user Scheduled Task (no admin needed) so the agent starts at
-#    logon, restarts if it stops, and runs independently of any terminal. Then
-#    start it. Falls back to a plain launch if the task can't be created.
-$started = $false
+# 4. Autostart at logon + launch now — both detached from this console (no admin)
+#    so closing the terminal never kills the agent.
 if ($AppExe -and (Test-Path $AppExe)) {
+  $ws = New-Object -ComObject WScript.Shell
+
+  # Persistent autostart: a shortcut in the user's Startup folder (Explorer
+  # launches it at every logon, fully detached).
   try {
-    $action    = New-ScheduledTaskAction -Execute $AppExe
-    $trigger   = New-ScheduledTaskTrigger -AtLogOn
-    $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" `
-                   -LogonType Interactive -RunLevel Limited
-    $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
-                   -StartWhenAvailable -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
-                   -ExecutionTimeLimit ([TimeSpan]::Zero)
-    Register-ScheduledTask -TaskName "TracklyAgent" -Action $action -Trigger $trigger `
-      -Principal $principal -Settings $settings -Force | Out-Null
-    Start-ScheduledTask -TaskName "TracklyAgent"
-    $started = $true
-    Write-Host "Trackly installed. Auto-starts at logon, restarts on failure, runs in the background."
-  } catch {
-    Write-Warning "Could not register task ($_). Falling back to a direct launch."
-  }
-  if (-not $started) { Start-Process -FilePath $AppExe }
+    $lnk = Join-Path ([Environment]::GetFolderPath('Startup')) "Trackly.lnk"
+    $shortcut = $ws.CreateShortcut($lnk)
+    $shortcut.TargetPath = $AppExe
+    $shortcut.WindowStyle = 7   # minimized/hidden
+    $shortcut.Save()
+  } catch { }
+
+  # Launch now via the shell (ShellExecute) so it is NOT tied to this console —
+  # it keeps running after the PowerShell window is closed.
+  $ws.Run("`"$AppExe`"", 0, $false) | Out-Null
+  Write-Host "Trackly installed and running. It auto-starts at login and updates itself."
 } else {
   Write-Warning "Installed, but could not locate Trackly.exe. It will start at next login."
 }
