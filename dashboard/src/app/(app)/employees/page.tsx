@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { MoreHorizontal, Search, Trash2, UserPlus } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronsUpDown, MoreHorizontal, Search, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { EmployeeStatus, formatDuration } from "@flowace/shared";
 import { PageHeader } from "@/components/page-header";
@@ -39,6 +39,39 @@ import { useDeleteEmployee, useEmployees } from "@/hooks/queries";
 import { AddEmployeeDialog } from "@/components/add-employee-dialog";
 import { initials } from "@/lib/utils";
 
+type SortKey = "name" | "status" | "currentApp" | "productive" | "unproductive" | "idle" | "lastSeen";
+
+function SortHead({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  align,
+}: {
+  label: string;
+  sortKey: SortKey;
+  sort: { key: SortKey; dir: "asc" | "desc" } | null;
+  onSort: (key: SortKey) => void;
+  align?: "right";
+}) {
+  const active = sort?.key === sortKey;
+  const Icon = !active ? ChevronsUpDown : sort!.dir === "asc" ? ChevronUp : ChevronDown;
+  return (
+    <TableHead className={align === "right" ? "text-right" : undefined}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`inline-flex items-center gap-1 whitespace-nowrap hover:text-foreground ${
+          align === "right" ? "flex-row-reverse" : ""
+        } ${active ? "text-foreground" : ""}`}
+      >
+        {label}
+        <Icon className="h-3.5 w-3.5 opacity-60" />
+      </button>
+    </TableHead>
+  );
+}
+
 export default function EmployeesPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -51,6 +84,31 @@ export default function EmployeesPage() {
   });
   const del = useDeleteEmployee();
   const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
+
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
+  const toggleSort = (key: SortKey) =>
+    setSort((s) => (s?.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+
+  const rows = useMemo(() => {
+    if (!data || !sort) return data;
+    const value = (e: (typeof data)[number]): string | number => {
+      switch (sort.key) {
+        case "name": return e.name.toLowerCase();
+        case "status": return e.status;
+        case "currentApp": return (e.currentApp ?? "").toLowerCase();
+        case "productive": return e.todayProductiveSeconds;
+        case "unproductive": return e.todayUnproductiveSeconds;
+        case "idle": return e.todayIdleSeconds;
+        case "lastSeen": return e.lastSeen ? new Date(e.lastSeen).getTime() : 0;
+      }
+    };
+    return [...data].sort((a, b) => {
+      const av = value(a), bv = value(b);
+      if (av < bv) return sort.dir === "asc" ? -1 : 1;
+      if (av > bv) return sort.dir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [data, sort]);
 
   async function confirmDelete() {
     if (!toDelete) return;
@@ -103,13 +161,13 @@ export default function EmployeesPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Current App</TableHead>
-              <TableHead className="text-right">Productive</TableHead>
-              <TableHead className="text-right">Unproductive</TableHead>
-              <TableHead className="text-right">Idle</TableHead>
-              <TableHead className="whitespace-nowrap">Last Seen</TableHead>
+              <SortHead label="Employee" sortKey="name" sort={sort} onSort={toggleSort} />
+              <SortHead label="Status" sortKey="status" sort={sort} onSort={toggleSort} />
+              <SortHead label="Current App" sortKey="currentApp" sort={sort} onSort={toggleSort} />
+              <SortHead label="Productive" sortKey="productive" sort={sort} onSort={toggleSort} align="right" />
+              <SortHead label="Unproductive" sortKey="unproductive" sort={sort} onSort={toggleSort} align="right" />
+              <SortHead label="Idle" sortKey="idle" sort={sort} onSort={toggleSort} align="right" />
+              <SortHead label="Last Seen" sortKey="lastSeen" sort={sort} onSort={toggleSort} />
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -129,7 +187,7 @@ export default function EmployeesPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((emp) => {
+              rows!.map((emp) => {
                 return (
                   <TableRow
                     key={emp.id}
