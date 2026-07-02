@@ -1,6 +1,6 @@
 {
   "name": "@flowace/agent",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "Trackly desktop monitoring agent (Electron).",
   "author": "Trackly <support@trackly.dev>",
@@ -72,7 +72,7 @@
     "nsis": {
       "oneClick": true,
       "perMachine": false,
-      "runAfterFinish": true
+      "runAfterFinish": false
     },
     "publish": [
       {
