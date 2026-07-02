@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
@@ -105,7 +104,6 @@ export default function EmployeesPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Employee</TableHead>
-              <TableHead>Department</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Current App</TableHead>
               <TableHead className="text-right">Productive</TableHead>
@@ -119,14 +117,14 @@ export default function EmployeesPage() {
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={9}>
+                  <TableCell colSpan={8}>
                     <Skeleton className="h-8 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : !data || data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="py-12 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="py-12 text-center text-muted-foreground">
                   No employees found.
                 </TableCell>
               </TableRow>
@@ -148,13 +146,6 @@ export default function EmployeesPage() {
                           <p className="truncate text-xs text-muted-foreground">{emp.email}</p>
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {emp.department ? (
-                        <Badge variant="muted">{emp.department}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
                     </TableCell>
                     <TableCell>
                       <StatusDot status={emp.status} />
