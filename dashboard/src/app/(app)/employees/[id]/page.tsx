@@ -10,7 +10,6 @@ import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { StatusDot } from "@/components/status-dot";
 import { ProductivityBar } from "@/components/charts/productivity-bar";
-import { ActiveIdleChart } from "@/components/charts/active-idle-chart";
 import { ScreenshotPreview } from "@/components/screenshot-preview";
 import { DeployAgent } from "@/components/deploy-agent";
 import { LiveView } from "@/components/live-view";
@@ -211,34 +210,23 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         </Card>
       )}
 
-      {/* Charts first */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle>Productivity ({format(new Date(`${date}T00:00:00`), "MMM d")})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {summary ? (
-              <ProductivityBar
-                productive={pct(summary.productiveSeconds)}
-                neutral={pct(summary.neutralSeconds)}
-                unproductive={pct(summary.unproductiveSeconds)}
-              />
-            ) : (
-              <Skeleton className="h-40" />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Active vs Idle Hours</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {stats ? <ActiveIdleChart data={stats.daily} /> : <Skeleton className="h-72" />}
-          </CardContent>
-        </Card>
-      </div>
+      {/* Productivity for the selected day */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Productivity ({format(new Date(`${date}T00:00:00`), "MMM d")})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {summary ? (
+            <ProductivityBar
+              productive={pct(summary.productiveSeconds)}
+              neutral={pct(summary.neutralSeconds)}
+              unproductive={pct(summary.unproductiveSeconds)}
+            />
+          ) : (
+            <Skeleton className="h-40" />
+          )}
+        </CardContent>
+      </Card>
 
       {/* Day metrics */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
