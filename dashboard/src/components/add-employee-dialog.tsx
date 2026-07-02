@@ -63,16 +63,6 @@ export function AddEmployeeDialog({
             <Input id="email" type="email" {...register("email")} placeholder="jane@company.com" />
             {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="department">Department</Label>
-              <Input id="department" {...register("department")} placeholder="Engineering" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="jobTitle">Job title</Label>
-              <Input id="jobTitle" {...register("jobTitle")} placeholder="Engineer" />
-            </div>
-          </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
