@@ -3,11 +3,11 @@ import { prisma } from "../lib/prisma";
 import { classify } from "../lib/productivity";
 import { extractDomain } from "@flowace/shared";
 
-/** Per-employee productivity breakdown for a specific day, plus a trailing
- * daily series for charts. Work totals cover the whole (local) day so late
- * arrivals and overtime are never lost; the configured workday is used only as
- * an attendance reference (arrival / departure / late / overtime). Times are
- * seconds unless noted. */
+/** Per-employee productivity + attendance for one shift-day, plus a trailing
+ * daily series. Activity is grouped by the employee's SHIFT (not calendar day),
+ * so a night shift (e.g. 20:00→06:00) that crosses midnight counts as one day.
+ * Work totals cover the whole shift-day; the shift is the attendance reference
+ * (arrival / departure / late / overtime). Times are seconds unless noted. */
 
 const toHours = (s: number) => Math.round((s / 3600) * 10) / 10;
 
@@ -24,26 +24,23 @@ export interface EmployeeStats {
   attendance: {
     arrival: string | null; // local "HH:mm" of first activity
     departure: string | null; // local "HH:mm" of last activity
-    workdayStart: string;
-    workdayEnd: string;
+    shiftStart: string;
+    shiftEnd: string;
+    overnight: boolean;
     timezone: string;
-    lateMinutes: number; // arrived after workdayStart
-    overtimeMinutes: number; // worked past workdayEnd
+    lateMinutes: number;
+    overtimeMinutes: number;
   };
   topApps: { name: string; seconds: number; productivity: Productivity }[];
   topWebsites: { domain: string; seconds: number; productivity: Productivity }[];
   topWindows: { title: string; seconds: number }[];
-  daily: {
-    day: string;
-    activeHours: number;
-    idleHours: number;
-    productiveHours: number;
-    unproductiveHours: number;
-  }[];
+  daily: { day: string; activeHours: number; idleHours: number; productiveHours: number; unproductiveHours: number }[];
 }
 
-// Local wall-clock of a UTC-stored timestamp, in the configured timezone.
+// $2 = timezone, $3 = shiftStart ("HH:mm"). Local wall-clock, and the shift-day
+// (the calendar date the shift STARTED — shifts everything back by shiftStart).
 const LOCAL = (col: string) => `("${col}" AT TIME ZONE 'UTC' AT TIME ZONE $2)`;
+const SHIFTDAY = (col: string) => `((${LOCAL(col)}) - $3::interval)::date`;
 
 function addDaysStr(dateStr: string, delta: number): string {
   const d = new Date(`${dateStr}T00:00:00.000Z`);
@@ -51,71 +48,66 @@ function addDaysStr(dateStr: string, delta: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-const toMin = (hm: string | null): number | null => {
-  if (!hm || !/^\d{1,2}:\d{2}/.test(hm)) return null;
-  const [h, m] = hm.split(":");
-  return Number(h) * 60 + Number(m);
-};
-
 export async function getEmployeeStats(
   employeeId: string,
   dateStr: string,
   days = 7,
 ): Promise<EmployeeStats> {
-  const settings = await prisma.settings.findUnique({ where: { id: "global" } });
+  const [settings, employee] = await Promise.all([
+    prisma.settings.findUnique({ where: { id: "global" } }),
+    prisma.employee.findUnique({ where: { id: employeeId }, select: { shiftStart: true, shiftEnd: true } }),
+  ]);
   const tz = settings?.timezone || "UTC";
-  const workdayStart = settings?.workdayStart || "09:00";
-  const workdayEnd = settings?.workdayEnd || "18:00";
+  const shiftStart = employee?.shiftStart || "09:00";
+  const shiftEnd = employee?.shiftEnd || "18:00";
+  const overnight = shiftEnd <= shiftStart;
   const rangeStartDate = addDaysStr(dateStr, -(days - 1));
 
   const ruleRows = await prisma.productivityRule.findMany({ where: { settingsId: "global" } });
   const rules = ruleRows.map((r) => ({ pattern: r.pattern, type: r.type, productivity: r.productivity }));
 
   const [dayRows, seriesRows, attendanceRows] = await Promise.all([
-    // Selected-day breakdown across the whole local day.
-    prisma.$queryRawUnsafe<
-      { app: string; title: string; site: string; state: string; seconds: bigint }[]
-    >(
-      `SELECT COALESCE("appName", '') AS app,
-              COALESCE("windowTitle", '') AS title,
-              COALESCE("website", '') AS site,
-              "state"::text AS state,
-              SUM("durationSec")::bigint AS seconds
+    // Selected-day breakdown over the UTC calendar day (same window the
+    // employees table uses, so Worked/Idle match exactly).
+    prisma.$queryRawUnsafe<{ app: string; title: string; site: string; state: string; seconds: bigint }[]>(
+      `SELECT COALESCE("appName", '') AS app, COALESCE("windowTitle", '') AS title,
+              COALESCE("website", '') AS site, "state"::text AS state, SUM("durationSec")::bigint AS seconds
        FROM "activity_logs"
-       WHERE "employeeId" = $1 AND ${LOCAL("startedAt")}::date = $3::date
+       WHERE "employeeId" = $1 AND "startedAt" >= $2::date AND "startedAt" < ($2::date + interval '1 day')
        GROUP BY 1, 2, 3, 4`,
       employeeId,
-      tz,
       dateStr,
     ),
-    // Trailing per-day active/idle series.
+    // Trailing per-day active/idle series (UTC days).
     prisma.$queryRawUnsafe<{ day: string; state: string; seconds: bigint }[]>(
-      `SELECT to_char(${LOCAL("startedAt")}::date, 'YYYY-MM-DD') AS day,
-              "state"::text AS state,
+      `SELECT to_char(date_trunc('day', "startedAt"), 'YYYY-MM-DD') AS day, "state"::text AS state,
               SUM("durationSec")::bigint AS seconds
        FROM "activity_logs"
-       WHERE "employeeId" = $1
-         AND ${LOCAL("startedAt")}::date >= $3::date
-         AND ${LOCAL("startedAt")}::date <= $4::date
+       WHERE "employeeId" = $1 AND "startedAt" >= $2::date AND "startedAt" < ($3::date + interval '1 day')
        GROUP BY 1, 2`,
       employeeId,
-      tz,
       rangeStartDate,
       dateStr,
     ),
-    // Arrival / departure = first / last active moment of the local day.
-    prisma.$queryRawUnsafe<{ arrival: string | null; departure: string | null }[]>(
+    // Arrival / departure + late / overtime vs the shift (handles overnight).
+    prisma.$queryRawUnsafe<
+      { arrival: string | null; departure: string | null; late_seconds: bigint | null; overtime_seconds: bigint | null }[]
+    >(
       `SELECT to_char(MIN(${LOCAL("startedAt")}), 'HH24:MI') AS arrival,
-              to_char(MAX(${LOCAL("endedAt")}), 'HH24:MI') AS departure
+              to_char(MAX(${LOCAL("endedAt")}), 'HH24:MI') AS departure,
+              EXTRACT(EPOCH FROM (MIN(${LOCAL("startedAt")}) - ($4::date + $3::interval)))::bigint AS late_seconds,
+              EXTRACT(EPOCH FROM (MAX(${LOCAL("endedAt")}) - ($4::date + $5::interval
+                + CASE WHEN $5::interval <= $3::interval THEN interval '1 day' ELSE interval '0 day' END)))::bigint AS overtime_seconds
        FROM "activity_logs"
-       WHERE "employeeId" = $1 AND "state" = 'ACTIVE' AND ${LOCAL("startedAt")}::date = $3::date`,
+       WHERE "employeeId" = $1 AND "state" = 'ACTIVE' AND ${SHIFTDAY("startedAt")} = $4::date`,
       employeeId,
       tz,
+      shiftStart,
       dateStr,
+      shiftEnd,
     ),
   ]);
 
-  // Aggregate the selected day.
   let workedSeconds = 0;
   let idleSeconds = 0;
   const appMap = new Map<string, number>();
@@ -160,17 +152,11 @@ export async function getEmployeeStats(
 
   const totalForPercent = workedSeconds + idleSeconds;
 
-  // Attendance vs the configured shift.
-  const arrival = attendanceRows[0]?.arrival ?? null;
-  const departure = attendanceRows[0]?.departure ?? null;
-  const arrMin = toMin(arrival);
-  const depMin = toMin(departure);
-  const startMin = toMin(workdayStart) ?? 0;
-  const endMin = toMin(workdayEnd) ?? 24 * 60;
-  const lateMinutes = arrMin !== null ? Math.max(0, arrMin - startMin) : 0;
-  const overtimeMinutes = depMin !== null ? Math.max(0, depMin - endMin) : 0;
+  const att = attendanceRows[0];
+  const lateMinutes = att?.late_seconds != null ? Math.max(0, Math.round(Number(att.late_seconds) / 60)) : 0;
+  const overtimeMinutes =
+    att?.overtime_seconds != null ? Math.max(0, Math.round(Number(att.overtime_seconds) / 60)) : 0;
 
-  // Trailing daily series (active vs idle hours per local day).
   const series = new Map<string, EmployeeStats["daily"][number]>();
   for (let i = 0; i < days; i++) {
     const key = addDaysStr(rangeStartDate, i);
@@ -193,7 +179,16 @@ export async function getEmployeeStats(
       neutralSeconds: prod.NEUTRAL,
       activityPercent: totalForPercent > 0 ? Math.round((workedSeconds / totalForPercent) * 100) : 0,
     },
-    attendance: { arrival, departure, workdayStart, workdayEnd, timezone: tz, lateMinutes, overtimeMinutes },
+    attendance: {
+      arrival: att?.arrival ?? null,
+      departure: att?.departure ?? null,
+      shiftStart,
+      shiftEnd,
+      overnight,
+      timezone: tz,
+      lateMinutes,
+      overtimeMinutes,
+    },
     topApps,
     topWebsites,
     topWindows,
