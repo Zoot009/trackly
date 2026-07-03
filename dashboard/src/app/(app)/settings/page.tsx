@@ -549,11 +549,17 @@ function TimezoneCombobox({
 function DetectedApps() {
   const { data, isLoading } = useDetectedApps();
   const create = useCreateRule();
+  const [q, setQ] = useState("");
+  const [hideMinor, setHideMinor] = useState(true);
 
-  const items = [
+  const all = [
     ...(data?.apps ?? []).map((a) => ({ ...a, kind: "APP" as const })),
     ...(data?.websites ?? []).map((w) => ({ ...w, kind: "WEBSITE" as const })),
   ];
+  const query = q.trim().toLowerCase();
+  const items = all.filter(
+    (i) => (!hideMinor || i.seconds >= 60) && (!query || i.name.toLowerCase().includes(query)),
+  );
   const columns = [
     { key: "PRODUCTIVE", label: "Productive" },
     { key: "NEUTRAL", label: "Neutral" },
@@ -565,67 +571,83 @@ function DetectedApps() {
       <CardHeader>
         <CardTitle>Detected apps &amp; sites</CardTitle>
         <CardDescription>
-          Everything your team has used in the last 30 days and how it&apos;s currently classified.
-          Change any item with the dropdown — it applies everywhere instantly.
+          Everything your team has used in the last 30 days, by current classification. Change any
+          item with the dropdown — it applies everywhere instantly.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         {isLoading ? (
           <Skeleton className="h-40" />
-        ) : items.length === 0 ? (
+        ) : all.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">No activity recorded yet.</p>
         ) : (
-          <div className="grid gap-4 md:grid-cols-3">
-            {columns.map((col) => {
-              const list = items.filter((i) => i.productivity === col.key);
-              return (
-                <div key={col.key} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">{col.label}</p>
-                    <span className="text-xs text-muted-foreground">{list.length}</span>
-                  </div>
-                  <div className="min-h-[3rem] space-y-1 rounded-lg border p-2">
-                    {list.length === 0 ? (
-                      <p className="px-1 py-2 text-xs text-muted-foreground">None</p>
-                    ) : (
-                      list.map((i) => (
-                        <div
-                          key={i.kind + i.name}
-                          className="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-accent/50"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm">{i.name}</p>
-                            <p className="text-[11px] text-muted-foreground">
-                              {i.kind === "WEBSITE" ? "site" : "app"} · {formatDuration(i.seconds)}
-                            </p>
-                          </div>
-                          <Select
-                            value={i.productivity}
-                            onValueChange={(v) =>
-                              create.mutate({
-                                pattern: i.name,
-                                type: i.kind,
-                                productivity: v as ProductivityRuleInput["productivity"],
-                              })
-                            }
+          <>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <Input
+                placeholder="Search apps or sites…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                className="sm:max-w-xs"
+              />
+              <label className="flex items-center gap-2 whitespace-nowrap text-sm text-muted-foreground">
+                <Switch checked={hideMinor} onCheckedChange={setHideMinor} />
+                Hide minor (under 1 min)
+              </label>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {columns.map((col) => {
+                const list = items.filter((i) => i.productivity === col.key);
+                return (
+                  <div key={col.key} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">{col.label}</p>
+                      <span className="text-xs text-muted-foreground">{list.length}</span>
+                    </div>
+                    <div className="max-h-[24rem] min-h-[3rem] space-y-1 overflow-y-auto rounded-lg border p-2">
+                      {list.length === 0 ? (
+                        <p className="px-1 py-2 text-xs text-muted-foreground">None</p>
+                      ) : (
+                        list.map((i) => (
+                          <div
+                            key={i.kind + i.name}
+                            className="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-accent/50"
                           >
-                            <SelectTrigger className="h-7 w-[7.5rem] text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="PRODUCTIVE">Productive</SelectItem>
-                              <SelectItem value="NEUTRAL">Neutral</SelectItem>
-                              <SelectItem value="UNPRODUCTIVE">Unproductive</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      ))
-                    )}
+                            <div className="min-w-0">
+                              <p className="truncate text-sm" title={i.name}>
+                                {i.name}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {i.kind === "WEBSITE" ? "site" : "app"} · {formatDuration(i.seconds)}
+                              </p>
+                            </div>
+                            <Select
+                              value={i.productivity}
+                              onValueChange={(v) =>
+                                create.mutate({
+                                  pattern: i.name,
+                                  type: i.kind,
+                                  productivity: v as ProductivityRuleInput["productivity"],
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-7 w-[7.5rem] shrink-0 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="PRODUCTIVE">Productive</SelectItem>
+                                <SelectItem value="NEUTRAL">Neutral</SelectItem>
+                                <SelectItem value="UNPRODUCTIVE">Unproductive</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </CardContent>
     </Card>
