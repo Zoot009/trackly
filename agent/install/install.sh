@@ -98,7 +98,7 @@ EOF
 [Desktop Entry]
 Type=Application
 Name=Trackly
-Exec=env ELECTRON_OZONE_PLATFORM_HINT=x11 /opt/trackly/app/AppRun
+Exec=env APPDIR=/opt/trackly/app ELECTRON_OZONE_PLATFORM_HINT=x11 /opt/trackly/app/AppRun
 X-GNOME-Autostart-enabled=true
 NoDisplay=true
 EOF
@@ -116,6 +116,7 @@ EOF
       nohup sudo -u "$SUDO_USER" \
         DISPLAY="${DISPLAY:-:0}" \
         XDG_RUNTIME_DIR="/run/user/$UID_N" \
+        APPDIR=/opt/trackly/app \
         ELECTRON_OZONE_PLATFORM_HINT=x11 \
         /opt/trackly/app/AppRun >/dev/null 2>&1 &
     fi

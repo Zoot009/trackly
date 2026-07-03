@@ -1,6 +1,6 @@
 {
   "name": "@flowace/agent",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
   "description": "Trackly desktop monitoring agent (Electron).",
   "author": "Trackly <support@trackly.dev>",
@@ -46,7 +46,9 @@
       "static/**/*"
     ],
     "asarUnpack": [
-      "**/node_modules/@paymoapp/active-window/**"
+      "**/node_modules/@paymoapp/active-window/**",
+      "**/node_modules/better-sqlite3/**",
+      "**/node_modules/uiohook-napi/**"
     ],
     "win": {
       "target": [
