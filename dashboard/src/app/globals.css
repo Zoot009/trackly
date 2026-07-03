@@ -106,6 +106,8 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    /* Render the whole app at 90% by default (same as browser zoom 90%). */
+    zoom: 0.9;
   }
   /* Tabular numerals for tables and metrics. */
   .tabular-nums {
