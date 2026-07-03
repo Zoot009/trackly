@@ -15,6 +15,25 @@ import { initAutoUpdater } from "./updater";
 // Run headless in the background — no dock icon on macOS.
 if (process.platform === "darwin") app.dock?.hide();
 
+// Linux: the active-window lookup, the OS idle timer and screen capture all use
+// X11 — they don't work under native Wayland. Force the X11/XWayland backend so
+// the Electron process (screenshots, live view) goes through X. This is a no-op
+// on an X11 login session; on Wayland it routes rendering through XWayland.
+// NOTE: window titles + idle detection are still limited on a Wayland session
+// because the native X client only sees XWayland windows — an X11 login session
+// is recommended for full monitoring.
+if (process.platform === "linux") {
+  if (!process.env.ELECTRON_OZONE_PLATFORM_HINT) {
+    app.commandLine.appendSwitch("ozone-platform-hint", "x11");
+  }
+  if (process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === "wayland") {
+    logger.warn(
+      "Wayland session detected — window titles and idle detection are limited. " +
+        "For full monitoring, use an X11 login session.",
+    );
+  }
+}
+
 // Single-instance lock: a second launch just exits.
 if (!app.requestSingleInstanceLock()) {
   app.quit();

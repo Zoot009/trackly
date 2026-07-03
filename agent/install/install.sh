@@ -62,25 +62,63 @@ EOF
     ;;
 
   Linux)
-    # Machine-wide provisioning + binary + autostart (all root-owned).
+    # Machine-wide provisioning + binary + autostart (all root-owned so a
+    # standard employee account can't remove it).
     mkdir -p /opt/trackly /etc/trackly /etc/xdg/autostart
     cat > /etc/trackly/provision.json <<EOF
 { "serverUrl": "$SERVER", "enrollmentToken": "$TOKEN" }
 EOF
-    curl -fsSL "$DOWNLOAD_BASE/downloads/Trackly.AppImage" -o /opt/trackly/Trackly.AppImage
-    chmod 755 /opt/trackly/Trackly.AppImage
+    chmod 644 /etc/trackly/provision.json
 
-    # System-wide autostart (applies to all users; removable only by root).
+    # Download the AppImage and EXTRACT it rather than running it directly:
+    # Ubuntu 22.04+ (and others) ship without libfuse2, so a direct AppImage run
+    # fails with "dlopen(): error loading libfuse.so.2". `--appimage-extract`
+    # is handled by the AppImage runtime itself and needs no FUSE.
+    TMP="$(mktemp -d)"
+    curl -fsSL "$DOWNLOAD_BASE/downloads/Trackly.AppImage" -o "$TMP/Trackly.AppImage"
+    chmod +x "$TMP/Trackly.AppImage"
+    ( cd "$TMP" && ./Trackly.AppImage --appimage-extract >/dev/null )
+    rm -rf /opt/trackly/app
+    mv "$TMP/squashfs-root" /opt/trackly/app
+    rm -rf "$TMP"
+
+    # Electron's sandbox helper must be setuid root to run under a normal (non-
+    # root) user account; we're root during install, so set it. Without this the
+    # agent aborts with "The SUID sandbox helper binary is not configured
+    # correctly". Then make the app world-readable/executable for every user.
+    if [ -f /opt/trackly/app/chrome-sandbox ]; then
+      chown root:root /opt/trackly/app/chrome-sandbox
+      chmod 4755 /opt/trackly/app/chrome-sandbox
+    fi
+    chmod -R a+rX /opt/trackly/app
+
+    # System-wide autostart (applies to all users; removable only by root). Force
+    # the X11 backend — screen capture / active-window / idle all use X11.
     cat > /etc/xdg/autostart/trackly.desktop <<EOF
 [Desktop Entry]
 Type=Application
 Name=Trackly
-Exec=/opt/trackly/Trackly.AppImage
+Exec=env ELECTRON_OZONE_PLATFORM_HINT=x11 /opt/trackly/app/AppRun
 X-GNOME-Autostart-enabled=true
 NoDisplay=true
 EOF
     chmod 644 /etc/xdg/autostart/trackly.desktop
-    nohup /opt/trackly/Trackly.AppImage >/dev/null 2>&1 &
+
+    # Stop any already-running instance so a re-run (the Linux update path)
+    # swaps in the freshly-extracted build instead of losing the single-instance
+    # lock race to the old one.
+    pkill -f "/opt/trackly/app/" 2>/dev/null || true
+
+    # Launch now for the invoking desktop user (best-effort, detached) so
+    # monitoring starts immediately instead of waiting for the next login.
+    if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+      UID_N="$(id -u "$SUDO_USER")"
+      nohup sudo -u "$SUDO_USER" \
+        DISPLAY="${DISPLAY:-:0}" \
+        XDG_RUNTIME_DIR="/run/user/$UID_N" \
+        ELECTRON_OZONE_PLATFORM_HINT=x11 \
+        /opt/trackly/app/AppRun >/dev/null 2>&1 &
+    fi
     ;;
 
   *)

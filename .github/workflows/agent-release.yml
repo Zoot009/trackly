@@ -42,9 +42,17 @@ jobs:
           NODE_ENV: development
       - run: npm run build:shared
 
-      # Rebuild native modules (better-sqlite3, sharp, uiohook-napi) against
-      # Electron's ABI, then package. Running from the agent workspace keeps
-      # electron-builder scoped to the app.
+      # Linux: @paymoapp/active-window has no prebuilt binary — it compiles its
+      # X11 addon from source and links -lX11, so the build needs the X11 dev
+      # headers. uiohook-napi ships prebuilts but pull its headers too as
+      # insurance in case it falls back to a source build.
+      - name: Install Linux build deps
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev libxtst-dev libxkbcommon-dev
+
+      # Rebuild native modules (better-sqlite3, uiohook-napi, active-window)
+      # against Electron's ABI, then package. Running from the agent workspace
+      # keeps electron-builder scoped to the app.
       - name: Build installer
         working-directory: agent
         run: |

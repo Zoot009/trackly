@@ -18,6 +18,16 @@ export function initAutoUpdater(): void {
     return;
   }
 
+  // Linux: the agent is installed root-owned under /opt (tamper-resistant) and
+  // runs from an extracted app dir with no APPIMAGE env, so electron-updater
+  // can't self-replace the binary — it would only error on every check. Linux
+  // updates are delivered by re-running the install script, which re-extracts
+  // the latest build over /opt/trackly/app.
+  if (process.platform === "linux") {
+    logger.info("Auto-updater disabled on Linux; update by re-running the install script.");
+    return;
+  }
+
   autoUpdater.logger = logger;
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
