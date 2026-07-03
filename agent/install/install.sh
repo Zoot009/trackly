@@ -36,9 +36,14 @@ case "$OS" in
 EOF
 
     # Install the app to /Applications (root-owned → user can't delete it).
+    # Mount to a KNOWN mountpoint: `-quiet` suppresses the device/mount table, so
+    # parsing its output for the mount path yields nothing — `-mountpoint` avoids
+    # the parse entirely and is robust.
     DMG="$(mktemp -d)/Trackly.dmg"
     curl -fsSL "$DOWNLOAD_BASE/downloads/Trackly.dmg" -o "$DMG"
-    MOUNT="$(hdiutil attach "$DMG" -nobrowse -quiet | tail -1 | awk '{ $1=$2=""; sub(/^  */,""); print }')"
+    MOUNT="$(mktemp -d)"
+    hdiutil attach "$DMG" -nobrowse -noverify -mountpoint "$MOUNT" >/dev/null
+    pkill -f "/Applications/Trackly.app/" 2>/dev/null || true
     rm -rf "/Applications/Trackly.app"
     cp -R "$MOUNT/Trackly.app" "/Applications/"
     hdiutil detach "$MOUNT" -quiet || true
