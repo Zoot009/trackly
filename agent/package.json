@@ -1,6 +1,6 @@
 {
   "name": "@flowace/agent",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "private": true,
   "description": "Trackly desktop monitoring agent (Electron).",
   "author": "Trackly <support@trackly.dev>",
@@ -58,10 +58,20 @@
     },
     "mac": {
       "target": [
-        "dmg"
+        {
+          "target": "dmg",
+          "arch": "universal"
+        }
       ],
       "category": "public.app-category.productivity",
-      "artifactName": "Trackly.${ext}"
+      "artifactName": "Trackly.${ext}",
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "LSUIElement": true,
+        "NSAppleEventsUsageDescription": "Trackly detects the active app and window title to measure productivity."
+      },
+      "identity": null
     },
     "linux": {
       "target": [

@@ -33,6 +33,11 @@ uploads/
 agent/release/
 agent/out/
 
+# ...but agent/build/ holds electron-builder RESOURCES (mac entitlements, icons),
+# not build output (output goes to agent/release/). Track it despite `build/` above.
+!agent/build/
+!agent/build/**
+
 # OS / editor
 .DS_Store
 Thumbs.db

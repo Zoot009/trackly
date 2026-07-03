@@ -43,6 +43,13 @@ EOF
     cp -R "$MOUNT/Trackly.app" "/Applications/"
     hdiutil detach "$MOUNT" -quiet || true
 
+    # Phase 1 (unsigned build): strip the download quarantine and ad-hoc sign so
+    # Gatekeeper allows it to run — Apple Silicon REQUIRES at least an ad-hoc
+    # signature. With a real Developer ID cert (Phase 2) the app arrives signed +
+    # notarized and these become harmless no-ops.
+    xattr -dr com.apple.quarantine "/Applications/Trackly.app" 2>/dev/null || true
+    codesign --force --deep --sign - "/Applications/Trackly.app" 2>/dev/null || true
+
     # LaunchAgent runs the app for each user at login (admin-installed → the
     # employee can't unload/remove it without admin rights).
     cat > "/Library/LaunchAgents/com.trackly.agent.plist" <<EOF

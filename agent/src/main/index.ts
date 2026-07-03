@@ -11,6 +11,7 @@ import { runEnrollment, enrollWithToken } from "./enroll";
 import { readProvision, clearProvision } from "./provision";
 import { fetchConfig } from "./api";
 import { initAutoUpdater } from "./updater";
+import { ensureMacPermissions } from "./macPermissions";
 
 // Run headless in the background — no dock icon on macOS.
 if (process.platform === "darwin") app.dock?.hide();
@@ -79,6 +80,9 @@ function rescheduleScreenshots(): void {
 
 async function startMonitoring(): Promise<void> {
   initDb();
+
+  // macOS: request Screen Recording + Accessibility before capturing anything.
+  await ensureMacPermissions();
 
   // Pull latest config (falls back to cached values when offline).
   const remoteConfig = await fetchConfig();
