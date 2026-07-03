@@ -16,8 +16,8 @@ export function DeployAgent({ token, employeeName }: { token: string; employeeNa
 
   const commands = {
     windows: `$env:TRACKLY_TOKEN="${token}"; $env:TRACKLY_SERVER="${server}"; irm ${base}/install.ps1 | iex`,
-    macos: `curl -fsSL ${base}/install.sh | sudo TRACKLY_TOKEN="${token}" TRACKLY_SERVER="${server}" bash`,
-    linux: `curl -fsSL ${base}/install.sh | sudo TRACKLY_TOKEN="${token}" TRACKLY_SERVER="${server}" bash`,
+    macos: `curl -fsSL ${base}/install.sh -o /tmp/trackly-install.sh && sudo TRACKLY_TOKEN="${token}" TRACKLY_SERVER="${server}" bash /tmp/trackly-install.sh`,
+    linux: `curl -fsSL ${base}/install.sh -o /tmp/trackly-install.sh && sudo TRACKLY_TOKEN="${token}" TRACKLY_SERVER="${server}" bash /tmp/trackly-install.sh`,
   };
 
   return (
