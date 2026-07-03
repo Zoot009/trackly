@@ -68,7 +68,11 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar variant="inset" {...props}>
+    // h-auto overrides the sidebar's default fixed `h-svh` height: with the app
+    // at 90% zoom, a 100svh height scales to 90% of the screen and leaves a gap
+    // under the footer. The fixed element already has inset-y-0 (top:0/bottom:0),
+    // so height:auto stretches it edge-to-edge and pins the profile to the bottom.
+    <Sidebar variant="inset" className="h-auto" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
