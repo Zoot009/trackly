@@ -200,6 +200,47 @@ export function useDetectedApps() {
   });
 }
 
+export interface AgentRow {
+  deviceId: string;
+  employeeId: string;
+  employeeName: string;
+  employeeEmail: string | null;
+  hostname: string;
+  platform: string;
+  agentVersion: string;
+  lastSeen: string | null;
+  online: boolean;
+}
+
+export interface GhostAgentRow {
+  id: string;
+  deviceId: string;
+  employeeName: string;
+  employeeEmail: string | null;
+  hostname: string;
+  platform: string;
+  agentVersion: string | null;
+  removedAt: string;
+  lastSeenAt: string | null;
+  stillReporting: boolean;
+}
+
+export function useAgents() {
+  return useQuery({
+    queryKey: ["agents"],
+    queryFn: () => apiClient.get<{ agents: AgentRow[]; ghosts: GhostAgentRow[] }>("/api/agents"),
+    refetchInterval: 20_000,
+  });
+}
+
+export function usePurgeGhost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/api/agents/ghosts/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["agents"] }),
+  });
+}
+
 export function useCreateRule() {
   const qc = useQueryClient();
   return useMutation({

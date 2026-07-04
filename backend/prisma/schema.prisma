@@ -233,3 +233,23 @@ model ProductivityRule {
   @@unique([type, pattern])
   @@map("productivity_rules")
 }
+
+// A snapshot of an agent whose employee was deleted. The agent may still be
+// installed and phoning home (its JWT stays valid for a year), so we record it
+// here on delete and bump `lastSeenAt` whenever it reconnects — surfacing
+// "removed from the dashboard but still reporting" machines so they get
+// uninstalled. Purged from the UI once the machine is confirmed gone.
+model GhostAgent {
+  id            String    @id @default(cuid())
+  deviceId      String    @unique // the deleted device id (agent token `sub`)
+  employeeName  String
+  employeeEmail String?
+  hostname      String
+  platform      String
+  agentVersion  String?
+  removedAt     DateTime  @default(now())
+  lastSeenAt    DateTime? // bumped each time the ghost agent reconnects
+  createdAt     DateTime  @default(now())
+
+  @@map("ghost_agents")
+}

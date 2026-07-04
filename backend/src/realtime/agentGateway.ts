@@ -36,13 +36,24 @@ export function registerAgentGateway(_io: SocketServer, socket: Socket): void {
 
   void sendConfig(socket);
 
+  // A deleted employee's agent keeps a valid JWT for a year, so it can still
+  // connect. Record it as a ghost so the Agents page shows it's "removed but
+  // still reporting" and can be uninstalled.
+  void recordGhostIfOrphaned(employeeId, deviceId, new Date());
+
   socket.on(SOCKET_EVENTS.AGENT_HEARTBEAT, async (payload: HeartbeatPayload) => {
     const lastSeen = new Date();
-    await prisma.device.update({ where: { id: deviceId }, data: { lastSeen } }).catch(() => {});
-    await prisma.employee
-      .update({ where: { id: employeeId }, data: { status: asDbStatus(payload.status), lastSeen } })
-      .catch(() => {});
-    emitLiveStatus({ employeeId, status: payload.status, lastSeen: lastSeen.toISOString() });
+    try {
+      await prisma.device.update({ where: { id: deviceId }, data: { lastSeen } });
+      await prisma.employee.update({
+        where: { id: employeeId },
+        data: { status: asDbStatus(payload.status), lastSeen },
+      });
+      emitLiveStatus({ employeeId, status: payload.status, lastSeen: lastSeen.toISOString() });
+    } catch {
+      // device/employee gone → ghost agent still phoning home (guarded below).
+      await recordGhostIfOrphaned(employeeId, deviceId, lastSeen);
+    }
   });
 
   socket.on(SOCKET_EVENTS.AGENT_ACTIVITY, async (payload: LiveActivityPayload) => {
@@ -84,4 +95,34 @@ export function registerAgentGateway(_io: SocketServer, socket: Socket): void {
 async function sendConfig(socket: Socket): Promise<void> {
   const config = await buildAgentConfig().catch(() => null);
   if (config) socket.emit(SOCKET_EVENTS.AGENT_CONFIG, config);
+}
+
+/**
+ * If the connecting agent's employee no longer exists, it's a "ghost" — deleted
+ * from the dashboard but still installed and reporting. Record/bump it so the
+ * Agents page can flag it. Guarded by an existence check so a transient DB error
+ * on a live employee never creates a spurious ghost.
+ */
+async function recordGhostIfOrphaned(
+  employeeId: string,
+  deviceId: string,
+  when: Date,
+): Promise<void> {
+  const emp = await prisma.employee
+    .findUnique({ where: { id: employeeId }, select: { id: true } })
+    .catch(() => "unknown" as const);
+  if (emp !== null) return; // employee exists (or we couldn't tell) → not a ghost
+  await prisma.ghostAgent
+    .upsert({
+      where: { deviceId },
+      create: {
+        deviceId,
+        employeeName: "(removed)",
+        hostname: "(unknown)",
+        platform: "(unknown)",
+        lastSeenAt: when,
+      },
+      update: { lastSeenAt: when },
+    })
+    .catch(() => {});
 }

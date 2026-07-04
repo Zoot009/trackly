@@ -59,6 +59,7 @@ const data = {
       url: "/settings",
       icon: Settings2,
       items: [
+        { title: "Agents", url: "/agents" },
         { title: "Settings", url: "/settings" },
         { title: "Profile", url: "/profile" },
       ],
