@@ -2,6 +2,7 @@ import { Productivity } from "@prisma/client";
 import { ReportType, type ReportSummary, type Productivity as SharedProductivity } from "@flowace/shared";
 import { prisma } from "../lib/prisma";
 import { getRules, classifyApp, classifyDomain } from "../lib/rules";
+import { getWorkHours, workHoursClause } from "../lib/workHours";
 
 // Prisma's Productivity enum is value-identical to the shared one but nominally
 // distinct; this normalises it for the shared ReportSummary contract.
@@ -23,16 +24,19 @@ export async function generateReport(
 ): Promise<ReportSummary> {
   const { start, end } = resolveRange(type, ref);
   const empWhere = employeeId ? { employeeId } : {};
+  const wh = await getWorkHours();
 
-  const [worked, idle, appUsage, webUsage, rules] = await Promise.all([
-    prisma.activityLog.aggregate({
-      where: { ...empWhere, state: "ACTIVE", startedAt: { gte: start, lt: end } },
-      _sum: { durationSec: true },
-    }),
-    prisma.activityLog.aggregate({
-      where: { ...empWhere, state: "IDLE", startedAt: { gte: start, lt: end } },
-      _sum: { durationSec: true },
-    }),
+  const [workedIdle, appUsage, webUsage, rules] = await Promise.all([
+    // Worked/idle from activity_logs, windowed to the global work hours (the
+    // hours must match the dashboard/employees views). $3 = optional employee.
+    prisma.$queryRawUnsafe<{ state: string; seconds: bigint }[]>(
+      `SELECT "state"::text AS state, SUM("durationSec")::bigint AS seconds
+       FROM "activity_logs"
+       WHERE "startedAt" >= $1 AND "startedAt" < $2 AND ${workHoursClause("startedAt", wh)}
+             ${employeeId ? 'AND "employeeId" = $3' : ""}
+       GROUP BY 1`,
+      ...(employeeId ? [start, end, employeeId] : [start, end]),
+    ),
     prisma.applicationUsage.groupBy({
       by: ["appName"],
       where: { ...empWhere, date: { gte: start, lt: end } },
@@ -78,8 +82,8 @@ export async function generateReport(
     rangeStart: start.toISOString(),
     rangeEnd: end.toISOString(),
     employeeId,
-    workedSeconds: worked._sum.durationSec ?? 0,
-    idleSeconds: idle._sum.durationSec ?? 0,
+    workedSeconds: Number(workedIdle.find((r) => r.state === "ACTIVE")?.seconds ?? 0),
+    idleSeconds: Number(workedIdle.find((r) => r.state === "IDLE")?.seconds ?? 0),
     productiveSeconds,
     unproductiveSeconds,
     topApps,

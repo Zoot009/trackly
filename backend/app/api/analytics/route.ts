@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { handler, ok } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { getRules, classifyApp, classifyDomain } from "@/lib/rules";
+import { getWorkHours, workHoursClause } from "@/lib/workHours";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export const GET = handler(async (req: NextRequest) => {
 
   const now = new Date();
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - days + 1));
+  const wh = await getWorkHours();
 
   const [appUsage, webUsage, dailyActivity, rules] = await Promise.all([
     prisma.applicationUsage.groupBy({
@@ -34,7 +36,7 @@ export const GET = handler(async (req: NextRequest) => {
               "state"::text AS state,
               SUM("durationSec")::bigint AS seconds
        FROM "activity_logs"
-       WHERE "startedAt" >= $1 ${employeeId && employeeId !== "all" ? 'AND "employeeId" = $2' : ""}
+       WHERE "startedAt" >= $1 AND ${workHoursClause("startedAt", wh)} ${employeeId && employeeId !== "all" ? 'AND "employeeId" = $2' : ""}
        GROUP BY 1, 2 ORDER BY 1`,
       start,
       ...(employeeId && employeeId !== "all" ? [employeeId] : []),

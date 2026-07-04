@@ -2,6 +2,7 @@ import { Productivity, type RuleType } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { classify } from "../lib/productivity";
 import { extractDomain } from "@flowace/shared";
+import { getWorkHours, workHoursClause } from "../lib/workHours";
 
 /** Per-employee productivity + attendance for one shift-day, plus a trailing
  * daily series. Activity is grouped by the employee's SHIFT (not calendar day),
@@ -53,9 +54,10 @@ export async function getEmployeeStats(
   dateStr: string,
   days = 7,
 ): Promise<EmployeeStats> {
-  const [settings, employee] = await Promise.all([
+  const [settings, employee, wh] = await Promise.all([
     prisma.settings.findUnique({ where: { id: "global" } }),
     prisma.employee.findUnique({ where: { id: employeeId }, select: { shiftStart: true, shiftEnd: true } }),
+    getWorkHours(),
   ]);
   const tz = settings?.timezone || "UTC";
   const shiftStart = employee?.shiftStart || "09:00";
@@ -67,13 +69,15 @@ export async function getEmployeeStats(
   const rules = ruleRows.map((r) => ({ pattern: r.pattern, type: r.type, productivity: r.productivity }));
 
   const [dayRows, seriesRows, attendanceRows] = await Promise.all([
-    // Selected-day breakdown over the UTC calendar day (same window the
-    // employees table uses, so Worked/Idle match exactly).
+    // Selected-day breakdown over the UTC calendar day, windowed to the global
+    // work hours (same filter the employees table + dashboard use, so Worked/
+    // Idle match exactly).
     prisma.$queryRawUnsafe<{ app: string; title: string; site: string; state: string; seconds: bigint }[]>(
       `SELECT COALESCE("appName", '') AS app, COALESCE("windowTitle", '') AS title,
               COALESCE("website", '') AS site, "state"::text AS state, SUM("durationSec")::bigint AS seconds
        FROM "activity_logs"
        WHERE "employeeId" = $1 AND "startedAt" >= $2::date AND "startedAt" < ($2::date + interval '1 day')
+             AND ${workHoursClause("startedAt", wh)}
        GROUP BY 1, 2, 3, 4`,
       employeeId,
       dateStr,
