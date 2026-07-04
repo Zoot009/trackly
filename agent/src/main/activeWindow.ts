@@ -20,11 +20,21 @@ export function getActiveWindowInfo(): WindowInfo | null {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const m = require("@paymoapp/active-window");
       const AW = m.default ?? m.ActiveWindow ?? m;
-      // macOS: getActiveWindow() only returns fresh data when the native run
-      // loop is pumped. 'get' pumps it on every call. Without this, results are
-      // stale/empty on mac — so app tracking AND the private-app (WhatsApp)
-      // privacy blackout silently fail. No-op on Windows/Linux.
-      AW.initialize(process.platform === "darwin" ? { osxRunLoop: "get" } : undefined);
+      AW.initialize();
+      // macOS: window TITLES are gated behind Screen Recording access inside the
+      // native lib — getWindowTitle() returns "" until requestPermissions() has
+      // set its internal hasScreenCaptureAccess flag (via CGPreflightScreenCapture
+      // Access). Without this call titles are always null, so title-based privacy
+      // matches (e.g. WhatsApp Web in a browser tab) never fire. Titles come from
+      // CGWindowListCopyWindowInfo (a direct query) — NO run loop pumping, so this
+      // does not disturb the screen-capture pipeline the way osxRunLoop did.
+      if (process.platform === "darwin") {
+        try {
+          AW.requestPermissions?.();
+        } catch {
+          /* best-effort permission registration */
+        }
+      }
       mod = AW;
     } catch (err) {
       logger.warn("active-window unavailable; app/window name will be omitted", err);
