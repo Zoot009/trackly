@@ -20,7 +20,11 @@ export function getActiveWindowInfo(): WindowInfo | null {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const m = require("@paymoapp/active-window");
       const AW = m.default ?? m.ActiveWindow ?? m;
-      AW.initialize();
+      // macOS: getActiveWindow() only returns fresh data when the native run
+      // loop is pumped. 'get' pumps it on every call. Without this, results are
+      // stale/empty on mac — so app tracking AND the private-app (WhatsApp)
+      // privacy blackout silently fail. No-op on Windows/Linux.
+      AW.initialize(process.platform === "darwin" ? { osxRunLoop: "get" } : undefined);
       mod = AW;
     } catch (err) {
       logger.warn("active-window unavailable; app/window name will be omitted", err);
