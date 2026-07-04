@@ -67,5 +67,6 @@ jobs:
             agent/release/*.dmg
             agent/release/*.AppImage
             agent/release/*.deb
+            agent/release/*.blockmap
             agent/release/latest*.yml
           if-no-files-found: ignore
