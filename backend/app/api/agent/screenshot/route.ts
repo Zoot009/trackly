@@ -23,10 +23,20 @@ export const POST = handler(async (req: NextRequest) => {
   const capturedAt = capturedAtRaw ? new Date(String(capturedAtRaw)) : new Date();
   const buffer = Buffer.from(await file.arrayBuffer());
 
+  // Some agents (older builds / high-DPI capture failures) upload an empty or
+  // corrupt frame. Reject it cleanly (422) instead of letting the image encoder
+  // throw an unhandled 500 that spams the logs.
+  if (buffer.length < 100) return fail("Empty screenshot buffer", 422);
+
   const settings = await prisma.settings.findUnique({ where: { id: "global" } });
   const quality = settings?.screenshotQuality ?? 70;
 
-  const stored = await storeScreenshot(agent.employeeId, capturedAt, buffer, quality);
+  let stored;
+  try {
+    stored = await storeScreenshot(agent.employeeId, capturedAt, buffer, quality);
+  } catch {
+    return fail("Invalid or undecodable screenshot", 422);
+  }
 
   const screenshot = await prisma.screenshot.create({
     data: {

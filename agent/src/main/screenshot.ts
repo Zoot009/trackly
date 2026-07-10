@@ -28,13 +28,33 @@ export async function captureScreenshot(): Promise<{ filePath: string; capturedA
     const { width, height } = primary.size;
     const scale = primary.scaleFactor || 1;
 
+    // Cap the requested thumbnail size. Asking desktopCapturer for the FULL
+    // physical resolution (width * scaleFactor) makes it return an EMPTY/black
+    // frame on high-DPI / 4K Windows machines — the cause of "some users get no
+    // screenshots". 1920px wide is proven to work and is plenty for monitoring.
+    const MAX_WIDTH = 1920;
+    const physW = Math.max(1, Math.round(width * scale));
+    const physH = Math.max(1, Math.round(height * scale));
+    const cap = physW > MAX_WIDTH ? MAX_WIDTH / physW : 1;
+
     const sources = await desktopCapturer.getSources({
       types: ["screen"],
-      thumbnailSize: { width: Math.round(width * scale), height: Math.round(height * scale) },
+      thumbnailSize: { width: Math.round(physW * cap), height: Math.round(physH * cap) },
     });
     if (sources.length === 0) return null;
 
-    const png = sources[0]!.thumbnail.toPNG();
+    // Never upload an empty capture (some machines/GPUs return a blank frame) —
+    // the backend can't decode it and it just spams errors.
+    const image = sources[0]!.thumbnail;
+    if (image.isEmpty()) {
+      logger.warn("Screenshot capture returned an empty frame — skipping");
+      return null;
+    }
+    const png = image.toPNG();
+    if (!png || png.length < 1000) {
+      logger.warn(`Screenshot buffer too small (${png?.length ?? 0} bytes) — skipping`);
+      return null;
+    }
 
     const dir = path.join(app.getPath("temp"), "trackly-shots");
     await fs.mkdir(dir, { recursive: true });
