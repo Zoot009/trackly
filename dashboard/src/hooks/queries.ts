@@ -107,7 +107,13 @@ export function useDeleteEmployee() {
 export function useUpdateEmployee(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { shiftStart?: string; shiftEnd?: string; name?: string; department?: string | null }) =>
+    mutationFn: (input: {
+      shiftStart?: string;
+      shiftEnd?: string;
+      name?: string;
+      email?: string;
+      department?: string | null;
+    }) =>
       apiClient.patch<Employee>(`/api/employees/${id}`, input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["employee", id] });

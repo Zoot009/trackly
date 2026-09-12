@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { ChevronDown, ChevronUp, ChevronsUpDown, MoreHorizontal, Search, Trash2, UserPlus } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronsUpDown, MoreHorizontal, Pencil, Search, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { EmployeeStatus, formatDuration } from "@flowace/shared";
 import { PageHeader } from "@/components/page-header";
@@ -33,10 +33,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useDeleteEmployee, useEmployees } from "@/hooks/queries";
 import { AddEmployeeDialog } from "@/components/add-employee-dialog";
+import { EditEmployeeDialog, type EditableEmployee } from "@/components/edit-employee-dialog";
 import { initials } from "@/lib/utils";
 
 type SortKey = "name" | "status" | "currentApp" | "productive" | "unproductive" | "idle" | "lastSeen";
@@ -84,6 +86,7 @@ export default function EmployeesPage() {
   });
   const del = useDeleteEmployee();
   const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [toEdit, setToEdit] = useState<EditableEmployee | null>(null);
 
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
   const toggleSort = (key: SortKey) =>
@@ -232,6 +235,14 @@ export default function EmployeesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
+                            onClick={() =>
+                              setToEdit({ id: emp.id, name: emp.name, email: emp.email })
+                            }
+                          >
+                            <Pencil className="h-4 w-4" /> Edit details
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             onClick={() => setToDelete({ id: emp.id, name: emp.name })}
                           >
@@ -249,6 +260,8 @@ export default function EmployeesPage() {
       </Card>
 
       <AddEmployeeDialog open={addOpen} onOpenChange={setAddOpen} />
+
+      <EditEmployeeDialog employee={toEdit} onOpenChange={(o) => !o && setToEdit(null)} />
 
       <Dialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
         <DialogContent>

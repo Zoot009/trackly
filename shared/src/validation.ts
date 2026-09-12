@@ -23,6 +23,11 @@ export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
 export const updateEmployeeSchema = createEmployeeSchema.partial();
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;
 
+/** Name + email edit from the employees table. Both are required here, unlike
+ * the partial update schema used for shift/department tweaks. */
+export const editEmployeeSchema = createEmployeeSchema.pick({ name: true, email: true });
+export type EditEmployeeInput = z.infer<typeof editEmployeeSchema>;
+
 /** Agent device registration. */
 export const registerDeviceSchema = z.object({
   enrollmentToken: z.string().min(10),

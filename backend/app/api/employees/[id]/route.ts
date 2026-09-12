@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { updateEmployeeSchema } from "@flowace/shared";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
@@ -23,8 +24,16 @@ export const PATCH = handler(async (req: NextRequest, ctx: Ctx) => {
   requireAdmin(req);
   const { id } = await ctx.params;
   const body = updateEmployeeSchema.parse(await req.json());
-  const employee = await prisma.employee.update({ where: { id }, data: body });
-  return ok(employee);
+  try {
+    const employee = await prisma.employee.update({ where: { id }, data: body });
+    return ok(employee);
+  } catch (err) {
+    // email is @unique — surface the clash instead of a generic 500.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return fail("An employee with that email already exists", 409);
+    }
+    throw err;
+  }
 });
 
 export const DELETE = handler(async (req: NextRequest, ctx: Ctx) => {
