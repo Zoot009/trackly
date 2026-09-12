@@ -27,11 +27,14 @@ function pick<T>(arr: T[], i: number): T {
 async function main() {
   console.log("Seeding Flowace…");
 
-  const password = await bcrypt.hash("admin12345", 12);
+  // Password is set on CREATE only — re-seeding must never reset a password the
+  // admin has since changed from the profile page. Override the initial value
+  // with SEED_ADMIN_PASSWORD rather than shipping a known default.
+  const password = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD ?? "admin12345", 12);
   await prisma.admin.upsert({
     where: { email: "admin@flowace.dev" },
     create: { email: "admin@flowace.dev", name: "Admin", password, role: "SUPER_ADMIN" },
-    update: { password },
+    update: {},
   });
 
   await prisma.settings.upsert({

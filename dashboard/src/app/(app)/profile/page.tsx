@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ChangePasswordCard } from "@/components/change-password-card";
 import { useAuth } from "@/store/auth";
 import { initials } from "@/lib/utils";
 
@@ -41,6 +42,8 @@ export default function ProfilePage() {
           </dl>
         </CardContent>
       </Card>
+
+      <ChangePasswordCard />
     </>
   );
 }

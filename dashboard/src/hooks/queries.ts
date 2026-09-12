@@ -8,6 +8,7 @@ import type {
   ReportSummary,
   AppSettings,
   CreateEmployeeInput,
+  ChangePasswordInput,
 } from "@flowace/shared";
 import { apiClient } from "@/lib/api";
 
@@ -255,6 +256,12 @@ export function useCreateRule() {
       qc.invalidateQueries({ queryKey: ["settings"] });
       qc.invalidateQueries({ queryKey: ["detected-apps"] });
     },
+  });
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (input: ChangePasswordInput) => apiClient.post("/api/auth/password", input),
   });
 }
 
