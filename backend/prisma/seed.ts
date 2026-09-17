@@ -1,5 +1,4 @@
 import { PrismaClient, Productivity, EmployeeStatus, ActivityState } from "@prisma/client";
-import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -30,7 +29,7 @@ async function main() {
   // Password is set on CREATE only — re-seeding must never reset a password the
   // admin has since changed from the profile page. Override the initial value
   // with SEED_ADMIN_PASSWORD rather than shipping a known default.
-  const password = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD ?? "admin12345", 12);
+  const password = process.env.SEED_ADMIN_PASSWORD ?? "admin12345";
   await prisma.admin.upsert({
     where: { email: "admin@flowace.dev" },
     create: { email: "admin@flowace.dev", name: "Admin", password, role: "SUPER_ADMIN" },

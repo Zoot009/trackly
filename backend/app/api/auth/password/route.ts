@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { changePasswordSchema } from "@flowace/shared";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, requireAdmin, verifyPassword } from "@/lib/auth";
+import { encodePassword, requireAdmin, verifyPassword } from "@/lib/auth";
 import { fail, handler, ok } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +25,7 @@ export const POST = handler(async (req: NextRequest) => {
 
   await prisma.admin.update({
     where: { id: admin.id },
-    data: { password: await hashPassword(body.newPassword) },
+    data: { password: await encodePassword(body.newPassword) },
   });
 
   return ok({ success: true });

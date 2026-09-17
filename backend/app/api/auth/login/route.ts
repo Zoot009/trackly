@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { loginSchema, UserRole } from "@flowace/shared";
 import { prisma } from "@/lib/prisma";
-import { signAdminToken, verifyPassword } from "@/lib/auth";
+import { isLegacyHash, signAdminToken, verifyPassword } from "@/lib/auth";
 import { fail, handler, ok } from "@/lib/http";
 import { env } from "@/lib/env";
 
@@ -12,6 +12,12 @@ export const POST = handler(async (req: NextRequest) => {
   const admin = await prisma.admin.findUnique({ where: { email: body.email } });
   if (!admin || !(await verifyPassword(body.password, admin.password))) {
     return fail("Invalid email or password", 401);
+  }
+
+  // Accounts created before the switch still hold a bcrypt hash. This is the
+  // only moment the plain password is known, so rewrite the row now.
+  if (isLegacyHash(admin.password)) {
+    await prisma.admin.update({ where: { id: admin.id }, data: { password: body.password } });
   }
 
   const token = signAdminToken({

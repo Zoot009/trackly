@@ -42,7 +42,7 @@ model Admin {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String
-  password  String // bcrypt hash
+  password  String // plain text — see backend/src/lib/auth.ts
   role      UserRole @default(ADMIN)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

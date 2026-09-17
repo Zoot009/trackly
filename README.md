@@ -25,7 +25,7 @@ flowace/
 |-----------|-------|
 | Agent     | Electron, TypeScript, better-sqlite3, electron-updater, active-win, sharp |
 | Dashboard | Next.js 15, React 19, Tailwind, shadcn/ui, TanStack Query, Zustand, Recharts, Socket.IO client |
-| Backend   | Next.js API routes, Socket.IO, Prisma, PostgreSQL, JWT, bcrypt, sharp |
+| Backend   | Next.js API routes, Socket.IO, Prisma, PostgreSQL, JWT, sharp |
 | Infra     | Docker Compose, Nginx, Vercel (dashboard), VPS (backend + Postgres + storage) |
 
 ## Quick start (local)

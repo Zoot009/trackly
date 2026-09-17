@@ -17,12 +17,37 @@ export interface AgentTokenPayload {
   kind: "agent";
 }
 
-export async function hashPassword(plain: string): Promise<string> {
-  return bcrypt.hash(plain, 12);
+/**
+ * Admin passwords are stored as PLAIN TEXT by explicit product decision: the
+ * column holds exactly what the admin typed, readable by anyone with database
+ * access. This is the only place that decides the storage format — flip these
+ * two functions back to bcrypt to reverse it.
+ *
+ * Rows created before this change still hold a bcrypt hash, so verifyPassword
+ * accepts both and the login route rewrites the old hash to plain text on the
+ * next successful sign-in.
+ */
+
+const BCRYPT_PREFIX = /^\$2[aby]\$/;
+
+/** True when a stored value is a legacy bcrypt hash rather than plain text. */
+export function isLegacyHash(stored: string): boolean {
+  return BCRYPT_PREFIX.test(stored);
 }
 
-export async function verifyPassword(plain: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(plain, hash);
+/** The value to persist for a new or changed password. */
+export async function encodePassword(plain: string): Promise<string> {
+  return plain;
+}
+
+/** Check an entered password against the stored value (plain text, or a legacy
+ * bcrypt hash for accounts that predate the switch). */
+export async function verifyPassword(plain: string, stored: string): Promise<boolean> {
+  if (isLegacyHash(stored)) return bcrypt.compare(plain, stored);
+  // Constant-time compare so the response time never leaks the password.
+  const a = Buffer.from(plain);
+  const b = Buffer.from(stored);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 export function signAdminToken(payload: AdminTokenPayload): string {
