@@ -8,6 +8,18 @@ function startOfUtcDay(d: Date): Date {
 }
 
 /**
+ * Postgres text columns cannot store a NUL byte (0x00) — it fails the whole
+ * INSERT with '22021 invalid byte sequence for encoding UTF8'. Some Windows
+ * window titles / app names contain an embedded NUL, so one bad sample would
+ * abort the batch transaction and the agent would retry it forever, blocking
+ * every later sample. Strip NULs from any agent-supplied string before it
+ * reaches the database.
+ */
+function clean<T extends string | null | undefined>(v: T): T {
+  return (typeof v === "string" ? (v.replace(/\u0000/g, "") as T) : v);
+}
+
+/**
  * Ingest a batch of activity samples from an agent. Idempotent-ish: persists
  * raw logs and rolls them up into per-day application/website aggregates.
  * Used both for live samples and for offline-cached backfills.
@@ -24,7 +36,13 @@ export async function ingestActivityBatch(
   const rules = settings?.rules ?? [];
 
   await prisma.$transaction(async (tx) => {
-    for (const s of input.samples) {
+    for (const raw of input.samples) {
+      const s = {
+        ...raw,
+        appName: clean(raw.appName),
+        windowTitle: clean(raw.windowTitle),
+        website: clean(raw.website),
+      };
       const startedAt = new Date(s.startedAt);
       const endedAt = new Date(s.endedAt);
       const durationSec = Math.max(
@@ -95,8 +113,8 @@ export async function updateLiveSnapshot(
     where: { id: employeeId },
     data: {
       status: data.status,
-      currentApp: data.currentApp,
-      currentWebsite: data.currentWebsite,
+      currentApp: clean(data.currentApp),
+      currentWebsite: clean(data.currentWebsite),
       currentActivity: data.currentActivity,
       lastSeen: data.lastSeen,
     },
