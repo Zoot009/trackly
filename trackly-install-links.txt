@@ -1,0 +1,26 @@
+Divya -> $env:TRACKLY_TOKEN="cmu5fizsj01mxno1ne1huyqrx"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Fatema -> $env:TRACKLY_TOKEN="cmu5feof901lvno1nrngc0ju5"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Hritik -> $env:TRACKLY_TOKEN="cmu5fluw601nrno1n34sfddwz"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Jagdish -> $env:TRACKLY_TOKEN="cmu5fpkkq01ovno1n91yv3og1"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Karuna (macOS) -> curl -fsSL https://tracker.zootcloud.com/install.sh -o /tmp/trackly-install.sh && sudo TRACKLY_TOKEN="cmu5fmbpl01nvno1nnlttxs0r" TRACKLY_SERVER="https://tracker.zootcloud.com" bash /tmp/trackly-install.sh
+Kashish -> $env:TRACKLY_TOKEN="cmu5fj6z101mzno1n7fuwdwhu"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Kritika -> $env:TRACKLY_TOKEN="cmu5fi28701mtno1n0n72am6c"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Kunal -> $env:TRACKLY_TOKEN="cmu5fm4ez01ntno1ngwae4stp"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+MAGESH -> $env:TRACKLY_TOKEN="cmu5fpxpr01oxno1nbod4cwgi"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Monika -> $env:TRACKLY_TOKEN="cmu5fjpw501nhno1n02lm29ix"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Nandini -> $env:TRACKLY_TOKEN="cmu5fp9o901otno1nolh1581b"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Nazmin -> $env:TRACKLY_TOKEN="cmu5fh2sj01mlno1ncxojvpnr"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Neha -> $env:TRACKLY_TOKEN="cmu5fk0gh01njno1n1sfi7hu3"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Pavani -> $env:TRACKLY_TOKEN="cmu5fe49g01llno1n2u4zmpxj"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Prarthana -> $env:TRACKLY_TOKEN="cmu5fisir01mvno1nlrbo8o6b"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Pratibha -> $env:TRACKLY_TOKEN="cmu5fg49m01m1no1nsp6wp2ld"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Rutuja -> $env:TRACKLY_TOKEN="cmu5ff55a01lxno1n15y04797"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Shahanawaz -> $env:TRACKLY_TOKEN="cmu5fkjqd01nnno1n66t1f6qh"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Shweta -> $env:TRACKLY_TOKEN="cmu5fhlx101mpno1ng3sl1658"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Sneha -> $env:TRACKLY_TOKEN="cmu5fji6k01nfno1np4uqfwrb"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Sopan -> $env:TRACKLY_TOKEN="cmu5fkb6z01nlno1nqrdzzkm4"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Sumit -> $env:TRACKLY_TOKEN="cmu5ffnm101lzno1nin3lkd6j"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Surya -> $env:TRACKLY_TOKEN="cmu5fhvd501mrno1nciba12mg"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Tejaswi -> $env:TRACKLY_TOKEN="cmu5fhebo01mnno1nzsskx531"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Tulsi -> $env:TRACKLY_TOKEN="cmu5g12dq01rvno1nqqo2djqp"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex
+Yash -> $env:TRACKLY_TOKEN="cmu5fkrdb01npno1nj6k7mf02"; $env:TRACKLY_SERVER="https://tracker.zootcloud.com"; irm https://tracker.zootcloud.com/install.ps1 | iex

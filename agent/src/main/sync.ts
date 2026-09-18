@@ -1,4 +1,4 @@
-import { promises as fs } from "node:fs";
+import { existsSync, promises as fs } from "node:fs";
 import type { ActivityBatchInput } from "@flowace/shared";
 import { config } from "./config";
 import {
@@ -77,8 +77,18 @@ export class SyncWorker {
   private async flushScreenshots(): Promise<void> {
     const rows = pendingScreenshots(20);
     for (const row of rows) {
+      // The temp file can vanish — Windows clears %TEMP%, or the agent was
+      // reinstalled while rows stayed queued in the cache DB. That is permanent, so
+      // drop the row instead of retrying it forever: uploadScreenshot returns false
+      // for a missing file exactly like it does for a network failure, and the
+      // `break` below would then block every screenshot queued behind it.
+      if (!existsSync(row.filePath)) {
+        markScreenshotSynced(row.id);
+        logger.warn(`Screenshot file gone, dropped from queue: ${row.filePath}`);
+        continue;
+      }
       const ok = await uploadScreenshot(row.filePath, row.capturedAt);
-      if (!ok) break;
+      if (!ok) break; // transient (offline/server) — retry on the next cycle
       markScreenshotSynced(row.id);
       await fs.rm(row.filePath, { force: true }).catch(() => {});
       logger.info("Synced screenshot");

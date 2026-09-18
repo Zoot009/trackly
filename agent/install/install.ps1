@@ -60,9 +60,17 @@ if ($AppExe -and (Test-Path $AppExe)) {
     $shortcut.Save()
   } catch { }
 
-  # Launch now via the shell (ShellExecute) so it is NOT tied to this console —
-  # it keeps running after the PowerShell window is closed.
-  $ws.Run("`"$AppExe`"", 0, $false) | Out-Null
+  # Launch now, fully DETACHED from this console. WScript.Shell.Run (used
+  # previously) starts the process still attached to the PowerShell console, so
+  # closing the window sent the agent a CTRL_CLOSE_EVENT and killed it until the
+  # next login. Win32_Process.Create spawns with no parent console, so the agent
+  # survives the terminal closing.
+  try {
+    ([wmiclass]"Win32_Process").Create("`"$AppExe`"") | Out-Null
+  } catch {
+    # Fallback: Start-Process is still more detached than WScript.Shell.Run.
+    Start-Process -FilePath $AppExe -WindowStyle Hidden
+  }
   Write-Host "Trackly installed and running. It auto-starts at login and updates itself."
 } else {
   Write-Warning "Installed, but could not locate Trackly.exe. It will start at next login."
