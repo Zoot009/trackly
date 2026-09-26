@@ -10,7 +10,7 @@ import type {
   CreateEmployeeInput,
   ChangePasswordInput,
 } from "@flowace/shared";
-import { apiClient } from "@/lib/api";
+import { api, apiClient } from "@/lib/api";
 
 export interface ScreenshotRow {
   id: string;
@@ -154,6 +154,19 @@ export function useScreenshots(params: { employeeId?: string; date?: string; pag
   return useQuery({
     queryKey: ["screenshots", params],
     queryFn: () => apiClient.get<Paginated<ScreenshotRow>>(`/api/screenshots?${qs.toString()}`),
+  });
+}
+
+export function useDeleteScreenshots() {
+  const qc = useQueryClient();
+  return useMutation({
+    // apiClient.delete sends no body, so call api() directly for the id list.
+    mutationFn: (ids: string[]) =>
+      api<{ deleted: number }>("/api/screenshots", { method: "DELETE", body: { ids } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["screenshots"] });
+      qc.invalidateQueries({ queryKey: ["employees"] });
+    },
   });
 }
 

@@ -45,6 +45,12 @@ export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;
 export const editEmployeeSchema = createEmployeeSchema.pick({ name: true, email: true });
 export type EditEmployeeInput = z.infer<typeof editEmployeeSchema>;
 
+/** Admin deleting screenshots — a single delete is a one-element list. */
+export const deleteScreenshotsSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(500),
+});
+export type DeleteScreenshotsInput = z.infer<typeof deleteScreenshotsSchema>;
+
 /** Agent device registration. */
 export const registerDeviceSchema = z.object({
   enrollmentToken: z.string().min(10),
